@@ -1,0 +1,5 @@
+{
+  "_note": "Back-test ground truth from the case brief. Read only by scripts/backtest.ts, never by scoring code or prompts.",
+  "cv_01": "Exceeds", "cv_02": "Exceeds", "cv_03": "Meets", "cv_04": "Exceeds",
+  "cv_05": "Below", "cv_06": "Exceeds", "cv_07": "Exceeds", "cv_08": "Meets"
+}

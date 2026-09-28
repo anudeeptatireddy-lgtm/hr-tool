@@ -45,3 +45,31 @@ Choices made where the spec was silent. Anything touching weights, thresholds, e
     - Every build and every handled incident is listed separately.
     - `users` now means whose problem the build fixed.
     - Result: 59 of 59 quotes verified across the 8 hires.
+
+## Milestone 3 · Scoring, back-test, website
+
+22. **Project renamed to HR Tool** and moved to `~/hr-tool` (was `~/kargo-screener`), with git history kept. It is separate from common-ground.
+23. **Moved to TypeScript on Netlify** so the user can test the logic on a hosted site. Netlify doesn't run Python functions, and one implementation keeps the site, the back-test and the tests in agreement. Streamlit is replaced by two static pages.
+24. **Scoring is code** (`src/scoring.ts`), per the Components Map. It reads only `work_kind`, `employer_type`, `months`, `hands_on_tasks`, `volume`, `users`, `adoption` and the ownership and kill flags. It never reads employer or college names. How each signal is scored:
+    - **S1:** hands-on months are summed across roles. A role counts only if it's at an operator (forwarder, CHA, 3PL, NVOCC, port, shipper), has at least one doing-verb task, and has a duration.
+      - 3 = 24+ months with a stated volume.
+      - 2 = 24+ months with no volume (flagged low confidence), 6–23 months, or 24+ months embedded with ops teams from a vendor seat.
+      - 1 = software, integration or sales work for logistics, or under 6 months hands-on.
+    - **S2:** 3 = built for ops or customers, with adoption stated. 2 = adopted by their own team. 1 = a build with no adoption, or a tool for themselves.
+    - **S3:** 3 = sole owner plus a crisis carried to resolution. 2 = sole owner only. 1 = a layer above them, or a crisis without sole ownership.
+    - **S4:** 3 = killed or reversed their own work. 2 = a lesson adopted by others. 1 = an incident handled.
+    - Every item needs a verified quote, or it gets no credit and is flagged.
+25. **Median of 3 extractions.** Single runs varied by a point on S3 or S4, and one hire flipped band in 2 of 3 single-run back-tests. Each CV is now extracted 3 times in parallel, and the run with the median total is kept whole, so its quotes and card match. This triples AI calls per CV; Flash is cheap.
+26. **Extraction prompt, third pass** (general rules, nothing hire-specific):
+    - `work_kind` is decided from the tasks described, not the job title. SPEC's rule is a doing-verb next to an operational object. Commercial tasks don't count.
+    - `own_call` is defined as reversing something they built or decided themselves. Replacing someone else's vendor, or fixing an incident, doesn't count.
+    - An answer missing required keys counts as a failed parse and gets the one allowed retry.
+27. **Back-test ground truth** is in `data/hires/ratings.json` (file id → rating). Only `scripts/backtest.ts` reads it. SPEC's expected per-hire scores aren't stored anywhere in the code. The published `public/backtest.json` shows file ids only, never names.
+28. **Gates:**
+    - PM: PM years + half of adjacent years must be 1.5–5.
+    - Senior PM: 4–9 PM years, plus an owned integration or platform area with a verified quote.
+    - Location: Mumbai, Navi Mumbai or Thane passes; willing to relocate passes; won't relocate fails; unknown becomes an "ask" (a question in the invite, not a decline).
+    - A failed gate makes the recommendation Decline, but the score is still shown.
+29. **Both roles are scored every time**, as the map asks. The card uses the role the founder picked. If none was picked, the CV's stated role is used; if that's unclear, the role is guessed from PM tenure (4+ years = Senior PM) and flagged "please confirm".
+30. **Risk line:** when no signal lost points, it names the open gate question, or says the CV claims still need testing in interview. It no longer calls a 3/3 signal "weakest".
+31. **The card is built in code for now.** AI call 2 (the interview brief and the email draft) comes with the email milestone.

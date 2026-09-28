@@ -1,0 +1,22 @@
+// Extraction varies a little between runs, so a candidate's band shouldn't hang on one call.
+// Run K extractions in parallel, score each, and keep the run with the median total (its quotes and card
+// stay consistent because they all come from that one run).
+import { extractEvidence, type Evidence } from "./extraction";
+import { DEFAULT_WEIGHTS, scoreSignals, total, type Scored, type Weights } from "./scoring";
+
+export const RUNS = 3;
+
+export type Consensus = { evidence: Evidence; scored: Scored; totals: number[]; picked: number; errors: string[] };
+
+export async function extractConsensus(cv: string, k = RUNS, weights: Weights = DEFAULT_WEIGHTS, timeoutMs?: number): Promise<{ result: Consensus | null; error: string }> {
+  const runs = await Promise.all(Array.from({ length: k }, () => extractEvidence(cv, timeoutMs)));
+  const good = runs.filter((r) => r.evidence).map((r) => {
+    const scored = scoreSignals(r.evidence!, cv);
+    return { evidence: r.evidence!, scored, t: total(scored.signals, weights) };
+  });
+  const errors = runs.filter((r) => !r.evidence).map((r) => r.error);
+  if (!good.length) return { result: null, error: errors[0] || "extraction failed" };
+  const sorted = [...good].sort((a, b) => a.t - b.t);
+  const med = sorted[Math.floor((sorted.length - 1) / 2)];
+  return { result: { evidence: med.evidence, scored: med.scored, totals: good.map((g) => g.t), picked: good.indexOf(med), errors }, error: "" };
+}

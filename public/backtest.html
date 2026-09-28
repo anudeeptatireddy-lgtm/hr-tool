@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Past-Hire Back-test</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Back-test on past hires</h1><div class="muted small">The acceptance test: the 8 past-hire CVs, names removed, run through the real pipeline.</div></div>
+    <a href="/">← Screen a CV</a>
+  </header>
+  <section class="panel" id="sum"><span class="spinner"></span>Loading…</section>
+  <section class="panel"><div class="table-wrap"><table id="t"></table></div>
+    <p class="muted small">Pass condition: every hire rated Exceeds scores 65 or more, and every other hire scores under 65. Each CV is extracted 3 times and the median run is scored; all 3 run totals are shown.</p></section>
+</main>
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+fetch("/backtest.json").then((r) => r.json()).then((d) => {
+  const w = d.weights;
+  document.getElementById("sum").innerHTML = `<div class="headline">${d.passed ? '<span class="pill pass">PASS</span>' : '<span class="pill fail">FAIL</span>'} Gap between groups: ${d.gap.toFixed(1)} points</div>
+    <div class="muted small">Weights S1 ${w.S1} · S2 ${w.S2} · S3 ${w.S3} · S4 ${w.S4} · shortlist at ${d.threshold} · run ${new Date(d.ranAt).toLocaleString()}</div>`;
+  document.getElementById("t").innerHTML = `<thead><tr><th>Hire</th><th>Actual rating</th><th class="num">S1</th><th class="num">S2</th><th class="num">S3</th><th class="num">S4</th><th class="num">Total</th><th>Result</th><th>3 runs</th></tr></thead><tbody>` +
+    d.rows.map((r) => `<tr><td>${esc(r.id)}</td><td>${esc(r.rating)}</td><td class="num">${r.S1}</td><td class="num">${r.S2}</td><td class="num">${r.S3}</td><td class="num">${r.S4}</td><td class="num score">${r.total.toFixed(1)}</td>
+      <td><span class="pill ${r.pass ? "ok" : "flip"}">${r.pass ? (r.total >= d.threshold ? "≥ 65 ok" : "< 65 ok") : "band flip"}</span></td><td class="small muted">${(r.runs || []).join(" / ")}</td></tr>`).join("") + "</tbody>";
+}).catch(() => { document.getElementById("sum").innerHTML = '<span class="error">No back-test result yet. Run npm run backtest.</span>'; });
+</script>
+</body>
+</html>

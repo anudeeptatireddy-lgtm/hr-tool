@@ -1,4 +1,6 @@
-# Kargo Hiring Screener — Project Context for Claude Code
+# HR Tool (Kargo Hiring Screener) — Project Context for Claude Code
+
+Project folder: `~/hr-tool` (its own repo; not part of common-ground).
 
 ## What we're building and why
 
@@ -65,14 +67,15 @@ We are building the screening tool. We do not screen candidates ourselves.
 
 Still required though not drawn on the map: Hold as a third option, the decision log and audit view (hard rule 8), top 5 labelled "below pattern threshold", and the nightly digest.
 
-### Default stack (change only if the user asks)
+### Stack (changed at the user's request)
 
-- Python 3.11+ (3.12 in `.venv`). **Gemini** (user's choice) via its REST v1 endpoint with `httpx`; model `gemini-3.6-flash` (`GEMINI_MODEL`).
-- `resend` Python SDK for email.
-- Streamlit for Arjun's UI: one page, cards sorted by score, three buttons per card.
-- SQLite for candidates, scores, evidence and decisions.
-- Text extraction: `pypdf` or `pdfplumber` for PDF, `python-docx` for DOCX, plain read for TXT. Log and skip anything unreadable; never crash the batch.
-- Config via `.env` (see `.env.example`).
+- **TypeScript on Netlify.** Static pages in `public/` plus Netlify Functions in `netlify/functions/`. Logic lives in `src/` and is shared by the site, the scripts and the tests. The Python prototype from Milestones 1–2 was ported and removed.
+- **Gemini** (`gemini-3.6-flash`, REST v1 via `fetch`) for AI calls. `GEMINI_API_KEY` goes in `.env` locally and in Netlify env vars in production.
+- **Netlify Blobs** for job results. Screening runs in a background function (up to 15 minutes); the page checks back for the result.
+- **Vitest** for tests (`npm test`); `npm run backtest` is the Milestone 3 acceptance test.
+- Text extraction: `unpdf` (PDF), `mammoth` (DOCX, document order), `word-extractor` (DOC), plain read (TXT). Log and skip anything unreadable; never crash the batch.
+- TypeScript is pinned to 5.x: TypeScript 7 crashes `netlify dev`.
+- Resend for email (Milestone 6); a database for the decision log comes later (Neon was proposed).
 
 ## Hard rules (do not break these)
 
