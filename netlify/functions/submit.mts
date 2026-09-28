@@ -1,6 +1,6 @@
-// POST /api/submit {name, data (base64), role} -> {id}. Stores the CV and starts the background screening.
-import { getStore } from "@netlify/blobs";
+// POST /api/submit {name, data (base64), role} -> {id}. Stores the CV in Neon and starts the background screening.
 import type { Config } from "@netlify/functions";
+import { createJob, finishJob } from "../../src/db";
 
 const OK_EXT = new Set(["pdf", "docx", "doc", "txt"]);
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -17,13 +17,11 @@ export default async (req: Request) => {
   const role = body.role === "PM" || body.role === "Senior PM" ? body.role : null;
 
   const id = crypto.randomUUID();
-  const store = getStore("hr-tool");
-  await store.set(`files/${id}`, new Uint8Array(buf).buffer as ArrayBuffer, { metadata: { name } });
-  await store.setJSON(`jobs/${id}`, { status: "running", name, role, startedAt: new Date().toISOString() });
+  await createJob(id, name, role, buf);
   // Background functions answer 202 straight away and keep running (up to 15 minutes).
   const res = await fetch(new URL("/.netlify/functions/screen-background", req.url), { method: "POST", body: JSON.stringify({ id }) });
   if (res.status !== 202) {
-    await store.setJSON(`jobs/${id}`, { status: "error", error: `Couldn't start screening (${res.status}).` });
+    await finishJob(id, "error", null, `Couldn't start screening (${res.status}).`);
     return Response.json({ error: "Couldn't start screening." }, { status: 502 });
   }
   return Response.json({ id });

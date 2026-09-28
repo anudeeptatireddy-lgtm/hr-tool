@@ -10,6 +10,7 @@ This version tests the logic only: upload a CV, then see the extraction, the S1â
 npm install
 cp .env.example .env         # add GEMINI_API_KEY
 npm test                     # unit tests, no API calls
+npm run db:migrate           # create the Neon tables (once)
 npm run backtest             # Milestone 3 acceptance test on the 8 past hires (calls Gemini)
 npx netlify dev --offline    # local site on http://localhost:8888
 ```

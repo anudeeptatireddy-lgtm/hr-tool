@@ -71,11 +71,11 @@ Still required though not drawn on the map: Hold as a third option, the decision
 
 - **TypeScript on Netlify.** Static pages in `public/` plus Netlify Functions in `netlify/functions/`. Logic lives in `src/` and is shared by the site, the scripts and the tests. The Python prototype from Milestones 1–2 was ported and removed.
 - **Gemini** (`gemini-3.6-flash`, REST v1 via `fetch`) for AI calls. `GEMINI_API_KEY` goes in `.env` locally and in Netlify env vars in production.
-- **Netlify Blobs** for job results. Screening runs in a background function (up to 15 minutes); the page checks back for the result.
+- **Neon Postgres** (`@neondatabase/serverless`, pooled `DATABASE_URL`) for screenings: the `screenings` table in `db/001_screenings.sql`, applied with `npm run db:migrate` over the direct URL. Screening runs in a background function (up to 15 minutes), and the page checks back for the result. The uploaded file is cleared from the row once screening finishes.
 - **Vitest** for tests (`npm test`); `npm run backtest` is the Milestone 3 acceptance test.
 - Text extraction: `unpdf` (PDF), `mammoth` (DOCX, document order), `word-extractor` (DOC), plain read (TXT). Log and skip anything unreadable; never crash the batch.
 - TypeScript is pinned to 5.x: TypeScript 7 crashes `netlify dev`.
-- Resend for email (Milestone 6); a database for the decision log comes later (Neon was proposed).
+- Resend for email (Milestone 6). The decision log and audit trail (Milestones 5–7) go in the same Neon database.
 
 ## Hard rules (do not break these)
 
