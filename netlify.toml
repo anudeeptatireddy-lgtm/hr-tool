@@ -1,6 +1,10 @@
+# Netlify builds this from GitHub (main branch). Tests must pass before anything deploys.
 [build]
   publish = "public"
   command = "npm test"
+
+[build.environment]
+  NODE_VERSION = "22"
 
 [functions]
   node_bundler = "esbuild"
