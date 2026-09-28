@@ -1,4 +1,4 @@
-"""Model call 1: CV text -> evidence JSON (schema from docs/SPEC.md, plus a few documented extras)."""
+"""AI call 1: redacted CV text -> evidence JSON (schema from docs/SPEC.md, plus a few documented extras)."""
 import datetime as dt
 import json
 import re
@@ -64,7 +64,8 @@ def iter_quotes(ev: dict):
     for i, b in enumerate(ev.get("unprompted_builds") or []):
         yield f"unprompted_builds[{i}].cv_quote", b.get("cv_quote", "")
     own = ev.get("ownership") or {}
-    yield "ownership.cv_quote", own.get("cv_quote", "")
+    if own.get("sole_owner") or own.get("cv_quote"):
+        yield "ownership.cv_quote", own.get("cv_quote", "")
     if own.get("crisis") or own.get("crisis_quote"):
         yield "ownership.crisis_quote", own.get("crisis_quote", "")
     for i, k in enumerate(ev.get("kills_postmortems") or []):

@@ -18,8 +18,8 @@ def _bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 RESEND_FROM = os.getenv("RESEND_FROM", "onboarding@resend.dev")
 # Safe default: if DEMO_MODE is missing, behave as demo (never email real addresses).
@@ -31,8 +31,8 @@ ARJUN_EMAIL = os.getenv("ARJUN_EMAIL", "")
 def summary() -> dict:
     """Which settings are present, without printing any secret."""
     return {
-        "ANTHROPIC_API_KEY": "set" if ANTHROPIC_API_KEY else "missing",
-        "ANTHROPIC_MODEL": ANTHROPIC_MODEL,
+        "GEMINI_API_KEY": "set" if GEMINI_API_KEY else "missing",
+        "GEMINI_MODEL": GEMINI_MODEL,
         "RESEND_API_KEY": "set" if RESEND_API_KEY else "missing",
         "RESEND_FROM": RESEND_FROM,
         "DEMO_MODE": DEMO_MODE,

@@ -30,3 +30,18 @@ Choices made where the spec was silent. Anything touching weights, thresholds, e
 15. **JSON handling:** fences are stripped, and if the model wraps the JSON in prose, the outermost `{...}` is parsed. On failure it retries once with a "JSON only" reminder, then flags the file. A `refusal` or `max_tokens` stop is reported as the flag reason.
 16. **No thinking or effort settings** are passed, so `claude-sonnet-5` uses its defaults. Revisit if extraction quality is poor.
 17. **Guard tests** (`tests/`) fail if any hire name appears in a prompt or code file (names are read from the fixture file names at test time), or if redaction leaves a name in any hire CV.
+18. **Switched to Gemini** at the user's request: `gemini-3.6-flash` on the v1 REST endpoint via `httpx`, with JSON response mode and temperature 0. This is the same setup that works in the common-ground project. 429 and 5xx errors are retried with backoff. The `anthropic` package was removed.
+19. **The user's Components Map is now the architecture** (recorded in `CLAUDE.md`). Changes from the original plan:
+    - Personal details are removed before *every* AI call, not only for the back-test.
+    - Scoring is code, not a model call. It applies the SPEC anchors to the extraction JSON and scores both roles.
+    - AI call 2 writes the interview brief and the email draft.
+    - Emails are AI-drafted and sent on the founder's click.
+    - Founder upload with a role picker is the trigger, and the 60 existing CVs run as a batch.
+    - Items not drawn on the map but required by the hard rules (Hold, decision log, top-5 rule, digest) stay in.
+20. **"Present" is counted to today.** For the hire fixtures this inflates tenure (they were hired years ago). It doesn't affect the back-test, which applies no gates.
+21. **Extraction prompt, second pass** (general fixes, nothing hire-specific):
+    - SPEC's S3 evidence words (sole, only, first, independently, no [role] above, reports to CEO/founder) were added.
+    - `sole_owner` must be true whenever `layer_above` is "none".
+    - Every build and every handled incident is listed separately.
+    - `users` now means whose problem the build fixed.
+    - Result: 59 of 59 quotes verified across the 8 hires.

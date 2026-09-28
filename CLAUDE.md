@@ -51,20 +51,23 @@ We are building the screening tool. We do not screen candidates ourselves.
 - Gates come from the JDs: tenure range, Mumbai or willing to relocate, and for Senior PM an owned integration or platform area.
 - **Ignore completely:** college or MBA tier, generic certificates, conference talks, company size, and years beyond the minimum.
 
-## Architecture (Trigger → Input → Context → Processing → AI → Output)
+## Architecture (follows the user's Components Map, `docs/components_map.png` if added)
 
-| Stage | Flow A: Screen & rank | Flow B: Act on decision |
+| Stage | Actor | What happens |
 |---|---|---|
-| Trigger | New file in `data/applications/` (a CLI run or folder watch; batch the existing 60) | Arjun clicks Advance, Decline or Hold in the UI |
-| Input | One CV file plus the role applied for (detect it from the CV or cover text; if unclear, ask in the UI) | Candidate ID and decision |
-| Context | JD for that role (gates only), rubric anchors from SPEC.md described generically (no hire names or hire examples) | Candidate record, rationale, email templates |
-| Processing | Text extraction by format, dedupe by email or name, strip employer names and personal traits before scoring | Log the decision, choose a template, merge fields |
-| AI | Call 1: extract evidence to JSON (schema in SPEC.md). Call 2: score from the JSON only | Personalise one line of the email (optional) |
-| Output | Ranked cards in the UI; a record per candidate in SQLite | Email via Resend; status updated; audit log |
+| Trigger | Founder | Uploads a CV and selects the role applied for (PM / Senior PM). The existing 60 in `data/applications/` run as a batch, with the role detected from the CV and asked in the UI if unclear. |
+| Input | Founder | CV file + selected role |
+| Context | System | Extracts candidate info and prepares data. **Personal details are removed before anything goes to the AI** (name, email, phone, profile links; employer and college names are stripped before scoring). JD = gates only; rubric = SPEC.md anchors described generically. |
+| Processing | System | Scores the candidate against **both** the PM and Senior PM rubrics in code, from the extraction JSON only. Signal scores S1–S4 are role-independent; each role applies its own weights and gates. |
+| AI | AI model (Gemini) | Call 1: extraction to JSON (before scoring). Call 2: generates the interview brief and a personalised email draft (invite or rejection) from the scored record, never the raw CV. |
+| Output | Founder | Hiring dashboard: ranked candidates, scores, interview brief and draft emails with one-click send |
+| Email | Resend | Sends the email only when the founder clicks send; status goes back to the dashboard |
+
+Still required though not drawn on the map: Hold as a third option, the decision log and audit view (hard rule 8), top 5 labelled "below pattern threshold", and the nightly digest.
 
 ### Default stack (change only if the user asks)
 
-- Python 3.11+, `anthropic` SDK. Use model `claude-sonnet-5`, but confirm the current model string in Anthropic's docs.
+- Python 3.11+ (3.12 in `.venv`). **Gemini** (user's choice) via its REST v1 endpoint with `httpx`; model `gemini-3.6-flash` (`GEMINI_MODEL`).
 - `resend` Python SDK for email.
 - Streamlit for Arjun's UI: one page, cards sorted by score, three buttons per card.
 - SQLite for candidates, scores, evidence and decisions.
@@ -74,7 +77,7 @@ We are building the screening tool. We do not screen candidates ourselves.
 ## Hard rules (do not break these)
 
 1. **Every score must cite a `cv_quote` copied verbatim from the CV. No quote means no credit.** Validate that the quote actually appears in the extracted text; if it doesn't, set that signal's score to 0 and flag it.
-2. **Extraction and scoring are separate model calls.** The scoring call never sees the raw CV, only the extraction JSON.
+2. **Extraction and scoring are separate steps.** Per the Components Map, scoring runs in code from the extraction JSON only; it never sees the raw CV. The brief/email call also works from the scored record, not the CV.
 3. **Never send any email without Arjun's click.** No automatic declines on score alone. **Offers are never automated**; the tool stops at the interview invite.
 4. **DEMO_MODE=true redirects every email to DEMO_RECIPIENT.** The candidates are fictional; never email the addresses in their CVs. Resend's test sender also only delivers to the account owner's email.
 5. Before the scoring call, remove employer names, college names, photos, age, gender and marital status. Score the work described, not who they know or where they studied.
