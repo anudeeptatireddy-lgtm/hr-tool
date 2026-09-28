@@ -39,19 +39,26 @@ def _pdf(path: Path) -> str:
 
 def _docx(path: Path) -> str:
     import docx
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
 
     doc = docx.Document(str(path))
-    parts = [p.text for p in doc.paragraphs]
-    # CVs often put roles or skills in tables; python-docx skips those in .paragraphs.
-    for table in doc.tables:
-        for row in table.rows:
-            cells = []
-            for cell in row.cells:
-                t = cell.text.strip()
-                if t and t not in cells:  # merged cells repeat their text
-                    cells.append(t)
-            if cells:
-                parts.append(" | ".join(cells))
+    parts = []
+    # Walk the body in document order. CVs often lay out the name/contact header or roles
+    # as tables; reading tables last would move the header to the end.
+    for child in doc.element.body.iterchildren():
+        tag = child.tag.rsplit("}", 1)[-1]
+        if tag == "p":
+            parts.append(Paragraph(child, doc).text)
+        elif tag == "tbl":
+            for row in Table(child, doc).rows:
+                cells = []
+                for cell in row.cells:
+                    t = cell.text.strip()
+                    if t and t not in cells:  # merged cells repeat their text
+                        cells.append(t)
+                if cells:
+                    parts.append(" | ".join(cells))
     return "\n".join(parts)
 
 
