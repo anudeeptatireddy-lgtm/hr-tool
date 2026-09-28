@@ -2,6 +2,8 @@
 
 Screens CVs for Kargo's PM and Senior PM roles against the pattern of Arjun's best past hires, not the job descriptions. `CLAUDE.md` has the rules and build plan, and `docs/SPEC.md` has the rubric.
 
+Live: https://hrtoolproject.netlify.app (deploys from `main` on every push).
+
 This version tests the logic only: upload a CV, then see the extraction, the S1–S4 scores for both roles, the gates and the candidate card. No emails are sent.
 
 ## Run it
