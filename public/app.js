@@ -4,7 +4,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const api = async (path, body) => {
   const res = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
   const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(j.error || `Request failed (${res.status})`);
+  if (!res.ok) throw Object.assign(new Error(j.error || `Request failed (${res.status})`), { status: res.status, data: j });
   return j;
 };
 const fmtDate = (d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -391,15 +391,27 @@ const draftBlock = (e, name, i) => `<div class="draft-item" data-i="${i}">
   <div class="st small muted"></div></div>`;
 const recipientLine = (e) => e.sendBlocked ? `<span style="color:var(--red)">${esc(e.sendBlocked)}</span>` : `Will send to <b>${esc(e.willSendTo)}</b>${e.demo ? " (demo mode: all email goes to your own inbox, never the candidate's)" : ""}.`;
 
-async function emailOne(id, decision) {
+async function emailOne(id, decision, confirmBelowThreshold = false) {
   const c = data.candidates.find((x) => x.id === id) || {};
-  modal(decision === "advance" ? "Invite to interview" : "Send a decline", `<p><span class="spinner"></span>Logging your decision and drafting the email…</p>`);
+  const title = decision === "advance" ? "Invite to interview" : "Send a decline";
+  // Below the pass threshold, ask before anything is logged or drafted. The server enforces this too.
+  if (decision === "advance" && !confirmBelowThreshold && typeof c.match === "number" && c.match < data.threshold) return confirmLowAdvance(id, c.match, data.threshold);
+  modal(title, `<p><span class="spinner"></span>Logging your decision and drafting the email…</p>`);
   try {
-    const d = await api("/api/decide", { id, decision });
+    let d;
+    try { d = await api("/api/decide", { id, decision, confirmBelowThreshold }); }
+    catch (e) { if (e.data?.needsConfirmation) return confirmLowAdvance(id, e.data.match, e.data.threshold); throw e; }
     $("#mbody").innerHTML = `${draftBlock(d.email, c.name, 0)}<p class="small muted">${recipientLine(d.email)}</p>
       <div class="row-actions"><button class="btn" id="sendbtn" ${d.email.sendBlocked ? "disabled" : ""}>Send email</button><button class="btn ghost" onclick="closeModal()">Not now (keep as draft)</button></div>`;
     $("#sendbtn").onclick = () => sendDrafts([{ email: d.email, name: c.name }]);
   } catch (e) { $("#mbody").innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`; }
+}
+
+function confirmLowAdvance(id, match, threshold) {
+  modal("Advance below threshold?", `<p>This candidate scored <b>${Math.round(match)}%</b>, below your <b>${threshold}%</b> threshold. Advance anyway?</p>
+    <p class="muted small">Nothing has been logged or drafted yet. If you continue, the decision log records that you advanced them below the threshold.</p>
+    <div class="row-actions"><button class="btn" id="advAnyway">Advance anyway</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+  $("#advAnyway").onclick = () => emailOne(id, "advance", true);
 }
 
 async function emailAllPassed() {

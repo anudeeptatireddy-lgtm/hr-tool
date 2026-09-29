@@ -5,11 +5,11 @@ import { createDraft, getScreening, logDecision, type Decision } from "../../src
 import { draftEmail, draftEmailFromFacts, merge, type Kind } from "../../src/emailDraft";
 import { patternSummary } from "../../src/screen";
 import { recipientFor } from "../../src/mailer";
-import type { Role } from "../../src/scoring";
+import { SHORTLIST_AT, type Role } from "../../src/scoring";
 
 export default async (req: Request) => {
   if (req.method !== "POST") return Response.json({ error: "POST only" }, { status: 405 });
-  const { id, decision, role } = (await req.json().catch(() => ({}))) as { id?: string; decision?: Decision; role?: Role };
+  const { id, decision, role, confirmBelowThreshold } = (await req.json().catch(() => ({}))) as { id?: string; decision?: Decision; role?: Role; confirmBelowThreshold?: boolean };
   if (!id || !/^[0-9a-f-]{36}$/.test(id) || !["advance", "decline", "hold"].includes(decision as string)) return Response.json({ error: "Bad request" }, { status: 400 });
   const r = await getScreening(id);
   if (!r) return Response.json({ error: "Screening not found" }, { status: 404 });
@@ -17,9 +17,16 @@ export default async (req: Request) => {
   const useRole: Role = role === "PM" || role === "Senior PM" ? role : r.roleUsed;
   const rr = isPattern ? r.roles[useRole] : null;
   const sum = r.summary ?? patternSummary(r, { ref: useRole === "Senior PM" ? "KRG-SPM-01" : "KRG-PM-01", title: useRole === "Senior PM" ? "Senior Product Manager" : "Product Manager" });
+  const score = isPattern ? rr.total : sum.match;
+  // Advancing someone below the pass threshold needs an explicit "Advance anyway" (checked here, not only in the page).
+  const below = decision === "advance" && score < SHORTLIST_AT;
+  if (below && confirmBelowThreshold !== true) {
+    return Response.json({ needsConfirmation: true, match: score, threshold: SHORTLIST_AT,
+      error: `This candidate scored ${Math.round(score)}%, below your ${SHORTLIST_AT}% threshold.` }, { status: 409 });
+  }
   // Rationale = the card's reasons, so the log says why, not just what (hard rule 8).
-  const rationale = [...r.card.why.map((w: any) => w.line), `Risk: ${r.card.risk}`].join(" | ");
-  const logged = await logDecision(id, decision!, isPattern ? useRole : sum.jobTitle, isPattern ? rr.total : sum.match, isPattern ? rr.recommendation : sum.recommendation, rationale);
+  const rationale = [...(below ? [`Advanced below the ${SHORTLIST_AT}% threshold after confirmation`] : []), ...r.card.why.map((w: any) => w.line), `Risk: ${r.card.risk}`].join(" | ");
+  const logged = await logDecision(id, decision!, isPattern ? useRole : sum.jobTitle, score, isPattern ? rr.recommendation : sum.recommendation, rationale);
   if (decision === "hold") return Response.json({ decisionId: logged.id, loggedAt: logged.created_at });
 
   const kind: Kind = decision === "advance" ? "invite" : "decline";

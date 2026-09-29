@@ -123,3 +123,7 @@ Choices made where the spec was silent. Anything touching weights, thresholds, e
     - Median of 3 runs.
     
     Gates for these jobs: minimum years, calculated in code from the date ranges with overlaps counted once, and Mumbai-or-relocate (Devanagari "मुंबई" included).
+
+## QA round 2
+
+54. **Advancing below the pass threshold needs confirmation.** The page asks "This candidate scored X%, below your Y% threshold. Advance anyway?" before anything is logged or drafted. `/api/decide` enforces the same rule: an Advance below 65% without `confirmBelowThreshold: true` is refused with 409 and nothing is logged. That covers stale tabs and any other client. A confirmed low Advance is recorded in the decision's rationale ("Advanced below the 65% threshold after confirmation"). Decline and Hold are unaffected, and "Email all passed" only includes candidates above the threshold.
