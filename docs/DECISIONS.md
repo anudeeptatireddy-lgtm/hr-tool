@@ -139,3 +139,12 @@ Choices made where the spec was silent. Anything touching weights, thresholds, e
     - Server guard: `/api/submit` answers 429 "busy" when 6 or more screenings are running (from the last 10 minutes, so a crashed job can't block uploads), and the page treats that as retry-later.
     
     Load test: 11 files through the real queue finished in 108s with 0 failures. The dashboard, timed every 2s during the run, answered all 31 requests (average 2.1s, slowest 2.3s), the same as idle.
+60. **Test data cleared** (user's request), in one transaction: 51 test screenings (fixtures, synthetic and load tests, and the user's QA files) with their decisions and emails, the QA test job, and the QA-test decisions and drafts on 3 real applicants. What remains: the 60 real applicants (one row each, all "New") and the 2 Kargo jobs.
+61. **Extraction tightened, after measuring** (`npm run variance`). On the 21 flagged CVs, S2 disagreed between runs on 18. The cause was that `adoption` was filled inconsistently, often with business results ("120K users") instead of people adopting the fix. Fixes:
+    - **Adoption needs its own verbatim `adoption_quote`**, verified against the CV, or there's no adoption credit. Results go in a separate `outcome` field.
+    - **Users rule:** operations staff count as "ops" even when they're the person's own team, matching SPEC's anchor.
+    - **S1:** software or sales work only counts as logistics exposure at a logistics operator or a logistics software vendor. Roles unrelated to logistics aren't listed.
+    - **S3:** "not stated", "unknown", "n/a" and similar count as no layer described, the same as "none".
+    - **Seeded runs:** the 3 runs use Gemini seeds 1, 2 and 3 at temperature 0, so re-screening the same CV reproduces the same runs and score.
+    
+    After the fixes, S2 disagreed on 3 of the 21 CVs. The back-test still passes (gap 40), with 7 of 8 hires scoring identically on all 3 runs. All 60 applicants were re-screened in place.

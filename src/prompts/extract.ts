@@ -13,7 +13,7 @@ Every item you record needs a \`cv_quote\`: a passage copied **character for cha
 
 **pm_years**: total years in product manager roles (APM, PM, Senior PM, Group PM, Head of Product and similar), from the dates. One decimal place. **adjacent_years**: years in roles next to product (business analyst, operations analyst, product analyst, solutions or implementation roles), counted separately.
 
-**ops_roles**: every role that touches logistics, freight, shipping, ports, customs, warehousing or supply chain, including tech, sales or product roles at logistics companies and roles building software for logistics. For each:
+**ops_roles**: every role that touches logistics, freight, shipping, ports, customs, warehousing or supply chain, including tech, sales or product roles at logistics companies and roles building software for logistics. **Leave out roles that have nothing to do with logistics** (a job at a bank, an HR-tech or media company, a general IT services role): they are not listed at all. For each:
 - \`employer\` as written, and \`role_title\`.
 - \`employer_type\`: forwarder, CHA (customs house agent / customs broker), 3PL, NVOCC, port (port, terminal, ICD, CFS, shipping line), shipper (a manufacturer's or retailer's own logistics desk), software_vendor (builds software for logistics), or none.
 - \`work_kind\` (decide from the tasks the CV describes, **not the job title**; a sales, customer-service or analyst title at an operator is hands-on if they personally handled operational work, and a tech or HR role at a logistics company is not):
@@ -27,12 +27,17 @@ Every item you record needs a \`cv_quote\`: a passage copied **character for cha
 
 Operational vocabulary that often marks hands-on work: Bill of Lading (BoL/HBL/MBL), Shipping Bill, Certificate of Origin, LC or bank negotiation set, CHA, customs hold, ICEGATE, DGFT, ICD/CFS, JNPT or Nhava Sheva, berth window, DO release, detention/demurrage, NVOCC, LCL/FCL, carrier allocation, TMS, CargoWise, IATA DGR, NDR. Vocabulary alone isn't evidence: record \`hands_on_operations\` only when the CV says the person did the task.
 
-**unprompted_builds**: things they built or introduced that fixed a gap (a tracker, dashboard, template, checklist, process, SOP, tool, test suite, programme). **List every one separately**, including small internal tools; don't merge two builds into one item or skip minor ones. For each: the \`trigger\` (what was broken or missing, if stated; "not stated" otherwise), what was \`built\`, and \`users\`, meaning whose problem it fixed:
-- "ops": operations staff (a shipment, documentation, carrier or warehouse team).
-- "customers": clients or external users. Use this when the main effect was on clients (fewer client queries, faster client onboarding, a client-facing tool), even if the person's own team operates it.
-- "own team": colleagues in the person's own function, for that function's internal work (a PM template, a sales deck library, a content programme).
-- "self": only themselves, or engineering tooling for engineers (monitoring, test suites, dev tools).
-Also record \`adoption\` as stated: how many people or teams, how fast, "now standard", "retained permanently". Leave it empty if not stated. Include assigned project work only if the CV frames it as their own initiative.
+**unprompted_builds**: things they built or introduced that fixed a gap (a tracker, dashboard, template, checklist, process, SOP, tool, test suite, programme). **List every one separately**, including small internal tools; don't merge two builds into one item or skip minor ones. Include assigned project work only if the CV frames it as their own initiative. For each:
+- \`trigger\`: what was broken or missing, if stated; "not stated" otherwise.
+- \`built\`: what they built.
+- \`users\`: who used it. Apply these in order and pick the first that fits:
+  1. "ops": the people using it are operations staff (a shipment, documentation, carrier, warehouse, plant or service-delivery team). **Use "ops" even when that operations team is the person's own team.**
+  2. "customers": clients or external users used it, or its main effect was on clients (fewer client queries, faster client onboarding, a client-facing tool).
+  3. "own team": colleagues in the person's own non-operations function used it for that function's internal work (a PM template, a sales deck library, a content programme).
+  4. "self": only themselves, or engineering tooling for engineers (monitoring, test suites, dev tools).
+- \`adoption\` and \`adoption_quote\`: **only** if the CV says other people started using it: a count of people or teams who adopted it, how fast, or words like "adopted by", "rolled out to", "used by", "now standard", "became the team's standard", "retained permanently". \`adoption_quote\` is those exact words copied from the CV. If the CV doesn't say others adopted it, leave both empty. **Business results are not adoption**: users acquired, conversion, revenue, cost or time saved, downtime reduced or errors caught go in \`outcome\` instead.
+- \`outcome\`: the measurable result, if stated (empty if none).
+- \`cv_quote\`: the line that proves the build.
 
 **ownership**: were they the final decision-maker for their area?
 - \`sole_owner\` is true when the CV shows no one above or beside them making the calls for their area, in words like "sole", "only", "first [role]", "independently", "self-employed", "independent consultant", "no [role] above", "no [role] layer", "without a [role] layer", "reports to the CEO/founder" or "runs the full cycle alone". It is false when they were one of several people in the same role, supported someone senior, or had their area's decisions reviewed or made above them.

@@ -40,7 +40,8 @@ function s1(ev: Evidence, cv: string, flags: Flag[]): SignalResult & { lowConfid
   const H = hands.reduce((a, r) => a + r.months, 0);
   const withVolume = hands.filter((r) => r.volume.trim());
   const embedded = roles.filter((r) => r.work_kind === "embedded_with_ops_from_vendor").reduce((a, r) => a + r.months, 0);
-  const softwareOnly = roles.filter((r) => r.work_kind === "software_or_sales_for_logistics");
+  // Software or sales work counts as logistics exposure only at a logistics operator or a logistics software vendor.
+  const softwareOnly = roles.filter((r) => r.work_kind === "software_or_sales_for_logistics" && (OPERATORS.has(lc(r.employer_type)) || lc(r.employer_type) === "software_vendor"));
   const best = [...withVolume, ...hands].sort((a, b) => b.months - a.months)[0];
   const base = { handsOnMonths: H, lowConfidence: false };
   if (H >= 24 && withVolume.length)
@@ -53,7 +54,7 @@ function s1(ev: Evidence, cv: string, flags: Flag[]): SignalResult & { lowConfid
     const r = roles.find((x) => x.work_kind === "embedded_with_ops_from_vendor")!;
     return { ...base, score: 2, reason: `${embedded} months embedded with operations teams from a vendor seat`, quote: r.cv_quote, field: "ops_roles" };
   }
-  const touch = hands[0] ?? softwareOnly[0] ?? roles.find((x) => x.work_kind === "embedded_with_ops_from_vendor");
+  const touch = hands[0] ?? softwareOnly[0] ?? roles.find((x) => x.work_kind === "embedded_with_ops_from_vendor" && lc(x.employer_type) !== "none");
   if (touch)
     return { ...base, score: 1, reason: hands.length ? `only ${H} months hands-on` : "logistics only through software, integration or sales work, not operations", quote: touch.cv_quote, field: "ops_roles" };
   return { ...base, score: 0, reason: "no logistics operations evidence", quote: "", field: "ops_roles" };
@@ -61,7 +62,8 @@ function s1(ev: Evidence, cv: string, flags: Flag[]): SignalResult & { lowConfid
 
 function s2(ev: Evidence, cv: string, flags: Flag[]): SignalResult {
   const builds = verified(ev.unprompted_builds, cv, "unprompted_builds", flags);
-  const adopted = (b: { adoption: string }) => b.adoption.trim().length > 0;
+  // Adoption counts only when its own words are really in the CV (a result like "120K users" isn't adoption).
+  const adopted = (b: { adoption: string; adoption_quote?: string }) => !!b.adoption.trim() && !!b.adoption_quote && quoteInText(b.adoption_quote, cv);
   const forOps = builds.find((b) => ["ops", "customers"].includes(lc(b.users)) && adopted(b));
   if (forOps) return { score: 3, reason: `built "${forOps.built}" for ${lc(forOps.users)}; ${forOps.adoption}`, quote: forOps.cv_quote, field: "unprompted_builds" };
   const team = builds.find((b) => lc(b.users) === "own team" && adopted(b));
@@ -79,8 +81,9 @@ function s3(ev: Evidence, cv: string, flags: Flag[]): SignalResult {
   if (ownOk && crisisOk) return { score: 3, reason: `sole owner, and carried a crisis to resolution: ${o.crisis}`, quote: o.crisis_quote, field: "ownership" };
   if (ownOk) return { score: 2, reason: "sole owner of their area; no crisis described", quote: o.cv_quote, field: "ownership" };
   const layer = o.layer_above.trim();
-  if (crisisOk || (layer && !/^none/i.test(layer)))
-    return { score: 1, reason: `owner within a team${layer && !/^none/i.test(layer) ? ` (${layer} above or alongside)` : ""}`, quote: crisisOk ? o.crisis_quote : quoteInText(o.cv_quote, cv) ? o.cv_quote : "", field: "ownership" };
+  const described = !!layer && !/^(none|not stated|not mentioned|no one|nobody|unknown|unclear|n\/a|na)\b/i.test(layer);
+  if (crisisOk || described)
+    return { score: 1, reason: `owner within a team${described ? ` (${layer} above or alongside)` : ""}`, quote: crisisOk ? o.crisis_quote : quoteInText(o.cv_quote, cv) ? o.cv_quote : "", field: "ownership" };
   return { score: 0, reason: "contributor only; no ownership described", quote: "", field: "ownership" };
 }
 

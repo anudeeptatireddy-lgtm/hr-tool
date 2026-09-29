@@ -57,7 +57,7 @@ describe("card", () => {
     const cv = "Prepared Bills of Lading for 180+ shipments monthly\nBuilt a tracker adopted by 12 ops staff";
     const e = ev({
       ops_roles: [{ employer_type: "CHA", work_kind: "hands_on_operations", months: 30, hands_on_tasks: ["prepared BoL"], volume: "180+/month", cv_quote: "Prepared Bills of Lading for 180+ shipments monthly" }],
-      unprompted_builds: [{ users: "ops", adoption: "12 ops staff", built: "tracker", cv_quote: "Built a tracker adopted by 12 ops staff" }],
+      unprompted_builds: [{ users: "ops", adoption: "12 ops staff", adoption_quote: "adopted by 12 ops staff", built: "tracker", cv_quote: "Built a tracker adopted by 12 ops staff" }],
     });
     const sc = scoreSignals(e, cv);
     const card = buildCard(sc, forRole(sc, e, "PM", cv));
@@ -71,7 +71,7 @@ describe("card", () => {
     const e = ev({
       candidate: { location: "Pune", relocation_stated: null },
       ops_roles: [{ employer_type: "forwarder", work_kind: "hands_on_operations", months: 30, hands_on_tasks: ["prepared BoL"], volume: "200/month", cv_quote: "Prepared BoL for 200 shipments a month" }],
-      unprompted_builds: [{ users: "ops", adoption: "12", built: "tracker", cv_quote: "Built a tracker adopted by 12 ops staff" }],
+      unprompted_builds: [{ users: "ops", adoption: "12", adoption_quote: "adopted by 12 ops staff", built: "tracker", cv_quote: "Built a tracker adopted by 12 ops staff" }],
       ownership: { sole_owner: true, layer_above: "none", cv_quote: "Sole PM", crisis: "outage", crisis_quote: "fixed an outage overnight" },
       kills_postmortems: [{ what: "k", own_call: true, learning_adopted: false, cv_quote: "killed a feature on usage data" }],
     });

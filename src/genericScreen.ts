@@ -48,12 +48,12 @@ export function scrubEmployers(ev: GenericEvidence): Record<string, { fact: stri
   return Object.fromEntries(Object.entries(ev.evidence).map(([k, items]) => [k, items.map((i) => ({ fact: scrub(i.fact), quote: scrub(i.cv_quote) }))]));
 }
 
-async function oneRun(cv: string, rubric: Rubric, timeoutMs?: number): Promise<{ ev: GenericEvidence; scored: GenericScored } | { error: string }> {
+async function oneRun(cv: string, rubric: Rubric, timeoutMs?: number, seed?: number): Promise<{ ev: GenericEvidence; scored: GenericScored } | { error: string }> {
   const keys = rubric.signals.map((s) => s.key);
   const signalsBrief = rubric.signals.map((s) => ({ key: s.key, name: s.name, looks_for: s.what }));
   const today = new Date().toISOString().slice(0, 10);
   const x = await callJson(EXTRACT.replace("{today}", today), JSON.stringify({ signals: signalsBrief }) + `\n\nCV text:\n<cv>\n${cv}\n</cv>`, timeoutMs,
-    (d: any) => (d && typeof d === "object" && d.evidence && typeof d.evidence === "object" ? [] : ["evidence"]));
+    (d: any) => (d && typeof d === "object" && d.evidence && typeof d.evidence === "object" ? [] : ["evidence"]), seed);
   if (!x.data) return { error: x.error };
   const ev = normaliseGenericEvidence(x.data, keys);
 
@@ -68,7 +68,7 @@ async function oneRun(cv: string, rubric: Rubric, timeoutMs?: number): Promise<{
   }
   const scrubbed = scrubEmployers(ev);
   const s = await callJson(SCORE, JSON.stringify({ rubric: rubric.signals.map(({ key, name, what, levels }) => ({ key, name, what, levels })), evidence: scrubbed }), timeoutMs,
-    (d: any) => keys.filter((k) => !d || typeof d[k] !== "object"));
+    (d: any) => keys.filter((k) => !d || typeof d[k] !== "object"), seed);
   if (!s.data) return { error: s.error };
 
   const signals = rubric.signals.map((sig: RubricSignal): GenericSignalResult => {
@@ -91,7 +91,7 @@ async function oneRun(cv: string, rubric: Rubric, timeoutMs?: number): Promise<{
 }
 
 export async function genericConsensus(cv: string, rubric: Rubric, k = 3, timeoutMs?: number) {
-  const runs = await Promise.all(Array.from({ length: k }, () => oneRun(cv, rubric, timeoutMs)));
+  const runs = await Promise.all(Array.from({ length: k }, (_, i) => oneRun(cv, rubric, timeoutMs, i + 1)));
   const good = runs.filter((r): r is { ev: GenericEvidence; scored: GenericScored } => "scored" in r);
   if (!good.length) return { result: null, error: (runs[0] as { error: string }).error || "extraction failed" };
   const sorted = [...good].sort((a, b) => a.scored.total - b.scored.total);

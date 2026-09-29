@@ -6,7 +6,7 @@ export type OpsRole = {
   employer: string; role_title: string; employer_type: string; work_kind: string;
   months: number; hands_on_tasks: string[]; volume: string; cv_quote: string;
 };
-export type Build = { trigger: string; built: string; users: string; adoption: string; cv_quote: string };
+export type Build = { trigger: string; built: string; users: string; adoption: string; adoption_quote: string; outcome: string; cv_quote: string };
 export type Kill = { what: string; own_call: boolean; learning_adopted: boolean; cv_quote: string };
 export type Evidence = {
   candidate: { name: string; email: string; role_applied: string; location: string; relocation_stated: boolean | null };
@@ -31,7 +31,7 @@ export const SCHEMA = {
     work_kind: "hands_on_operations | embedded_with_ops_from_vendor | software_or_sales_for_logistics",
     months: 0, hands_on_tasks: [""], volume: "", cv_quote: "",
   }],
-  unprompted_builds: [{ trigger: "", built: "", users: "ops | customers | own team | self", adoption: "", cv_quote: "" }],
+  unprompted_builds: [{ trigger: "", built: "", users: "ops | customers | own team | self", adoption: "", adoption_quote: "", outcome: "", cv_quote: "" }],
   ownership: { sole_owner: false, layer_above: "", crisis: "", cv_quote: "", crisis_quote: "" },
   kills_postmortems: [{ what: "", own_call: false, learning_adopted: false, cv_quote: "" }],
   integration_platform_ownership: false,
@@ -61,7 +61,7 @@ export function normaliseEvidence(raw: any): Evidence {
       months: num(r.months), hands_on_tasks: arr(r.hands_on_tasks).map(str).filter(Boolean), volume: str(r.volume), cv_quote: str(r.cv_quote),
     })),
     unprompted_builds: arr(raw?.unprompted_builds).map((b: any) => ({
-      trigger: str(b.trigger), built: str(b.built), users: str(b.users), adoption: str(b.adoption), cv_quote: str(b.cv_quote),
+      trigger: str(b.trigger), built: str(b.built), users: str(b.users), adoption: str(b.adoption), adoption_quote: str(b.adoption_quote), outcome: str(b.outcome), cv_quote: str(b.cv_quote),
     })),
     ownership: { sole_owner: o.sole_owner === true, layer_above: str(o.layer_above), crisis: str(o.crisis), cv_quote: str(o.cv_quote), crisis_quote: str(o.crisis_quote) },
     kills_postmortems: arr(raw?.kills_postmortems).map((k: any) => ({ what: str(k.what), own_call: k.own_call === true, learning_adopted: k.learning_adopted === true, cv_quote: str(k.cv_quote) })),
@@ -82,8 +82,8 @@ export function missingKeys(data: any): string[] {
   return miss;
 }
 
-export async function extractEvidence(redactedCv: string, timeoutMs?: number): Promise<{ evidence: Evidence | null; error: string }> {
-  const { data, error } = await callJson(systemPrompt(), `CV text:\n<cv>\n${redactedCv}\n</cv>`, timeoutMs, missingKeys);
+export async function extractEvidence(redactedCv: string, timeoutMs?: number, seed?: number): Promise<{ evidence: Evidence | null; error: string }> {
+  const { data, error } = await callJson(systemPrompt(), `CV text:\n<cv>\n${redactedCv}\n</cv>`, timeoutMs, missingKeys, seed);
   return { evidence: data ? normaliseEvidence(data) : null, error };
 }
 

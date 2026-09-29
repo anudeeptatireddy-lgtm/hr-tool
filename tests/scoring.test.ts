@@ -35,6 +35,8 @@ describe("S1 hands-on ops", () => {
   it("vocabulary with no doing-verb task scores no hands-on credit", () =>
     expect(scoreSignals(ev({ ops_roles: [opsRole({ hands_on_tasks: [] })] }), CV).signals.S1.score).toBeLessThan(2));
   it("0 with no logistics evidence", () => expect(scoreSignals(ev(), CV).signals.S1.score).toBe(0));
+  it("a software role at a non-logistics employer is no logistics exposure (0, not 1)", () =>
+    expect(scoreSignals(ev({ ops_roles: [opsRole({ employer_type: "none", work_kind: "software_or_sales_for_logistics", hands_on_tasks: [], cv_quote: "Integrated courier partner APIs" })] }), CV).signals.S1.score).toBe(0));
 });
 
 describe("hard rule 1: no quote, no credit", () => {
@@ -51,18 +53,28 @@ describe("hard rule 1: no quote, no credit", () => {
 });
 
 describe("S2–S4 anchors", () => {
-  const b = (users: string, adoption: string, cv_quote: string) => ({ trigger: "", built: "thing", users, adoption, cv_quote });
+  const b = (users: string, adoption: string, cv_quote: string) => ({ trigger: "", built: "thing", users, adoption, adoption_quote: adoption ? cv_quote : "", outcome: "", cv_quote });
   it("S2: 3 for ops/customers with adoption, 2 own team, 1 no adoption", () => {
     expect(scoreSignals(ev({ unprompted_builds: [b("ops", "12 people in 2 weeks", "Built a shipment tracker; adopted by the 12-person ops team in 2 weeks")] }), CV).signals.S2.score).toBe(3);
     expect(scoreSignals(ev({ unprompted_builds: [b("own team", "4 PMs", "Built a PRD template adopted by the 4-person PM team")] }), CV).signals.S2.score).toBe(2);
     expect(scoreSignals(ev({ unprompted_builds: [b("self", "", "Wrote a monitoring script for myself")] }), CV).signals.S2.score).toBe(1);
     expect(scoreSignals(ev(), CV).signals.S2.score).toBe(0);
   });
+  it("S2: adoption without its own verified quote gets no adoption credit", () => {
+    const q = "Built a shipment tracker; adopted by the 12-person ops team in 2 weeks";
+    expect(scoreSignals(ev({ unprompted_builds: [{ ...b("ops", "12 people", q), adoption_quote: "" }] }), CV).signals.S2.score).toBe(1);
+    expect(scoreSignals(ev({ unprompted_builds: [{ ...b("ops", "12 people", q), adoption_quote: "adopted by the whole company" }] }), CV).signals.S2.score).toBe(1);
+    expect(scoreSignals(ev({ unprompted_builds: [{ ...b("ops", "12 people", q), adoption_quote: "adopted by the 12-person ops team in 2 weeks" }] }), CV).signals.S2.score).toBe(3);
+  });
   it("S3: 3 sole + crisis, 2 sole only, 1 layer above", () => {
     const own = { sole_owner: true, layer_above: "none", cv_quote: "Sole PM for the platform" };
     expect(scoreSignals(ev({ ownership: { ...own, crisis: "customs hold", crisis_quote: "Resolved a customs hold overnight before the vessel cut-off" } }), CV).signals.S3.score).toBe(3);
     expect(scoreSignals(ev({ ownership: { ...own, crisis: "", crisis_quote: "" } }), CV).signals.S3.score).toBe(2);
     expect(scoreSignals(ev({ ownership: { sole_owner: false, layer_above: "3 senior PMs", cv_quote: "", crisis: "", crisis_quote: "" } }), CV).signals.S3.score).toBe(1);
+  });
+  it("S3: 'not stated', 'unknown' and 'none' all mean no layer described", () => {
+    for (const layer_above of ["not stated", "Unknown", "none stated", "N/A"])
+      expect(scoreSignals(ev({ ownership: { sole_owner: false, layer_above, cv_quote: "", crisis: "", crisis_quote: "" } }), CV).signals.S3.score).toBe(0);
   });
   it("S4: 3 own kill, 2 lesson adopted, 1 incident, 0 wins only", () => {
     const k = (own_call: boolean, learning_adopted: boolean, cv_quote: string) => ({ what: "x", own_call, learning_adopted, cv_quote });

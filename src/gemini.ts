@@ -19,13 +19,14 @@ export function parseJson(raw: string): unknown {
 
 type Content = { role: "user" | "model"; parts: { text: string }[] };
 
-async function generate(contents: Content[], system: string, timeoutMs: number): Promise<{ text: string; finish: string }> {
+async function generate(contents: Content[], system: string, timeoutMs: number, seed?: number): Promise<{ text: string; finish: string }> {
   const key = GEMINI_API_KEY();
   if (!key) throw new Error("GEMINI_API_KEY is not set");
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents,
-    generationConfig: { responseMimeType: "application/json", temperature: 0 },
+    // temperature 0 plus a fixed seed: the same input and seed give the same answer, so re-uploading a CV repeats its score.
+    generationConfig: { responseMimeType: "application/json", temperature: 0, ...(seed !== undefined ? { seed } : {}) },
   };
   let err = "";
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -56,13 +57,13 @@ async function generate(contents: Content[], system: string, timeoutMs: number):
 }
 
 /** `check` returns what's missing from a parsed answer; a non-empty list is treated like invalid JSON (one retry, then flag). */
-export async function callJson<T = unknown>(system: string, user: string, timeoutMs = 120_000, check?: (d: unknown) => string[]): Promise<{ data: T | null; error: string }> {
+export async function callJson<T = unknown>(system: string, user: string, timeoutMs = 120_000, check?: (d: unknown) => string[], seed?: number): Promise<{ data: T | null; error: string }> {
   let contents: Content[] = [{ role: "user", parts: [{ text: user }] }];
   let lastErr = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     let text: string, finish: string;
     try {
-      ({ text, finish } = await generate(contents, system, timeoutMs));
+      ({ text, finish } = await generate(contents, system, timeoutMs, seed));
     } catch (e) {
       return { data: null, error: e instanceof Error ? e.message : String(e) };
     }

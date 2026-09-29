@@ -16,7 +16,8 @@ export function spreadOf(totals: number[]): { spread: number; needsHumanReview: 
 export type Consensus = { evidence: Evidence; scored: Scored; totals: number[]; picked: number; errors: string[] };
 
 export async function extractConsensus(cv: string, k = RUNS, weights: Weights = DEFAULT_WEIGHTS, timeoutMs?: number): Promise<{ result: Consensus | null; error: string }> {
-  const runs = await Promise.all(Array.from({ length: k }, () => extractEvidence(cv, timeoutMs)));
+  // Seeds 1..k: different enough to show real ambiguity, and the same every time this CV is screened.
+  const runs = await Promise.all(Array.from({ length: k }, (_, i) => extractEvidence(cv, timeoutMs, i + 1)));
   const good = runs.filter((r) => r.evidence).map((r) => {
     const scored = scoreSignals(r.evidence!, cv);
     return { evidence: r.evidence!, scored, t: total(scored.signals, weights) };

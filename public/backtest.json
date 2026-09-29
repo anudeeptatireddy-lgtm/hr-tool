@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-29T09:08:00.582Z",
+  "ranAt": "2026-09-29T13:22:44.896Z",
   "weights": {
     "S1": 40,
     "S2": 30,
@@ -27,9 +27,31 @@
       "flags": 0,
       "reasons": {
         "S1": "33 months of hands-on logistics operations, with volume (800+ shipments monthly)",
-        "S2": "built \"daily visibility dashboard\" for ops; adopted by 2 other regional teams",
-        "S3": "sole owner, and carried a crisis to resolution: 4-hour platform outage",
+        "S2": "built \"daily visibility dashboard tracking 500+ active shipments across carriers\" for ops; adopted by 2 other regional teams",
+        "S3": "sole owner, and carried a crisis to resolution: 4-hour platform outage handled through retrospective and follow-up action items to closure",
         "S4": "stopped or reversed their own work: killed 2 features after early usage data showed low adoption despite strong qualitative demand in discovery"
+      }
+    },
+    {
+      "runs": [
+        93.3,
+        93.3,
+        93.3
+      ],
+      "id": "cv_01",
+      "rating": "Exceeds",
+      "S1": 3,
+      "S2": 3,
+      "S3": 3,
+      "S4": 1,
+      "total": 93.3,
+      "pass": true,
+      "flags": 0,
+      "reasons": {
+        "S1": "33 months of hands-on logistics operations, with volume (180+ shipments monthly)",
+        "S2": "built \"Bill of Lading verification module\" for ops; 30 colleagues using it within the first month",
+        "S3": "sole owner, and carried a crisis to resolution: critical PostgreSQL indexing issue causing query timeouts during peak hours, resolved same day",
+        "S4": "handled an incident, not their own call reversed: Led migration from legacy third-party data vendor due to reliability issues"
       }
     },
     {
@@ -49,59 +71,37 @@
       "flags": 0,
       "reasons": {
         "S1": "50 months of hands-on logistics operations, with volume (200+ import and export shipments monthly)",
-        "S2": "built \"redesigned the team's documentation intake and filing workflow\" for ops; retained permanently",
-        "S3": "sole owner, and carried a crisis to resolution: FMS vendor changed data export format without notice; redesigned documentation intake and filing workflow over a weekend to avoid disruption",
+        "S2": "built \"redesigned the team's documentation intake and filing workflow over a weekend\" for ops; retained permanently",
+        "S3": "sole owner, and carried a crisis to resolution: When FMS vendor changed data export format without notice, redesigned intake workflow over a weekend to prevent disruption.",
         "S4": "only wins listed"
       }
     },
     {
       "runs": [
-        76.7,
-        93.3,
-        90
-      ],
-      "id": "cv_01",
-      "rating": "Exceeds",
-      "S1": 3,
-      "S2": 3,
-      "S3": 3,
-      "S4": 0,
-      "total": 90,
-      "pass": true,
-      "flags": 0,
-      "reasons": {
-        "S1": "33 months of hands-on logistics operations, with volume (180+ shipments monthly)",
-        "S2": "built \"a shipment tracking and status update system in Excel\" for ops; adopted across the 12-member operations team within two weeks",
-        "S3": "sole owner, and carried a crisis to resolution: Diagnosed and resolved a critical PostgreSQL indexing issue causing query timeouts during peak hours",
-        "S4": "only wins listed"
-      }
-    },
-    {
-      "runs": [
-        76.7,
-        76.7,
-        70
+        80,
+        80,
+        80
       ],
       "id": "cv_06",
       "rating": "Exceeds",
       "S1": 3,
       "S2": 3,
       "S3": 1,
-      "S4": 0,
-      "total": 76.7,
+      "S4": 1,
+      "total": 80,
       "pass": true,
       "flags": 0,
       "reasons": {
         "S1": "30 months of hands-on logistics operations, with volume (15–20 active shipments daily)",
         "S2": "built \"customer onboarding checklist and documentation set\" for customers; became the team's standard",
-        "S3": "owner within a team (management above or alongside)",
-        "S4": "only wins listed"
+        "S3": "owner within a team (management, PM, engineering, senior executive above or alongside)",
+        "S4": "handled an incident, not their own call reversed: customs hold arose from a documentation error at 7pm before a critical shipment window"
       }
     },
     {
       "runs": [
         73.3,
-        80,
+        73.3,
         73.3
       ],
       "id": "cv_04",
@@ -115,16 +115,16 @@
       "flags": 0,
       "reasons": {
         "S1": "24 months of hands-on logistics operations, with volume (25 freight forwarder and NVOCC clients)",
-        "S2": "built \"company's first case study programme\", adopted by their own team (now used as primary sales collateral by the full team)",
-        "S3": "owner within a team (supported senior account managers above or alongside)",
-        "S4": "analysed a loss and the lesson was adopted: Spent 4 months working a large freight forwarder account that ultimately did not buy"
+        "S2": "built \"first case study programme\", adopted by their own team (now used as primary sales collateral by the full team)",
+        "S3": "owner within a team (senior account managers above or alongside)",
+        "S4": "analysed a loss and the lesson was adopted: Lost a large freight forwarder account after 4 months of sales work"
       }
     },
     {
       "runs": [
         33.3,
         33.3,
-        33.3
+        23.3
       ],
       "id": "cv_08",
       "rating": "Meets",
@@ -137,31 +137,31 @@
       "flags": 0,
       "reasons": {
         "S1": "no logistics operations evidence",
-        "S2": "built \"customer case study programme\", adopted by their own team (cited by the sales team as the most-used deal collateral during FY24 renewal cycle)",
+        "S2": "built \"customer case study programme\", adopted by their own team (most-used deal collateral)",
         "S3": "sole owner of their area; no crisis described",
         "S4": "only wins listed"
       }
     },
     {
       "runs": [
-        33.3,
-        33.3,
-        33.3
+        30,
+        30,
+        30
       ],
       "id": "cv_05",
       "rating": "Below",
       "S1": 1,
       "S2": 1,
       "S3": 1,
-      "S4": 1,
-      "total": 33.3,
+      "S4": 0,
+      "total": 30,
       "pass": true,
       "flags": 0,
       "reasons": {
         "S1": "logistics only through software, integration or sales work, not operations",
-        "S2": "built \"internal monitoring dashboard for order exception rates\", no adoption by others stated",
-        "S3": "owner within a team (12-engineer Order Management Platform (OMP) team above or alongside)",
-        "S4": "handled an incident, not their own call reversed: Systemic coupon validation bug affecting 0.3% of orders, which was losing ₹12L/month"
+        "S2": "built \"PostgreSQL indexing strategy\", no adoption by others stated",
+        "S3": "owner within a team (Part of the 12-engineer Order Management Platform (OMP) team above or alongside)",
+        "S4": "only wins listed"
       }
     },
     {
@@ -181,8 +181,8 @@
       "flags": 0,
       "reasons": {
         "S1": "no logistics operations evidence",
-        "S2": "built \"PRD template and sprint review process\", adopted by their own team (adopted by the 4-person PM team)",
-        "S3": "owner within a team (CTO, VP Sales, Senior PMs above or alongside)",
+        "S2": "built \"a PRD template and sprint review process\", adopted by their own team (4-person PM team)",
+        "S3": "owner within a team (CTO, VP Sales, senior PMs above or alongside)",
         "S4": "only wins listed"
       }
     }
