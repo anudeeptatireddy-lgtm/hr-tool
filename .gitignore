@@ -7,3 +7,5 @@ output/
 data/applications/*
 !data/applications/README.md
 .vercel/
+.vercel
+.env*
