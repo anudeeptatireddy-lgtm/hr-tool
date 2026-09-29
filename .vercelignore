@@ -1,0 +1,8 @@
+# Never upload applicant CVs, local env files or build output from this machine.
+data/applications/*
+!data/applications/README.md
+.env
+.env.*
+output/
+.netlify/
+node_modules/
