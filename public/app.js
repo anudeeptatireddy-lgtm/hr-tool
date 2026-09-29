@@ -430,13 +430,21 @@ async function holdOne(id) {
 // Same pattern as src/placeholders.ts (the server refuses these too).
 const PLACEHOLDER_RE = /\[[^\]\n]{1,60}\]|\{\{[^}\n]{0,60}\}\}|\{[a-z_][a-z0-9_]{0,40}\}|<[A-Z][A-Z0-9_ ]{1,40}>|\b(?:TODO|TBD|XXX)\b/g;
 const SCHEDULING_LINK = "[SCHEDULING LINK]";
+const REPLY_WITH_TIMES = "Could you reply with two or three times that suit you for a 30-minute call over the next week?";
+/** Replaces the sentence holding the link placeholder with a request to reply with times. */
+function useReplyWithTimes(el) {
+  const body = $(".body", el);
+  body.value = body.value.replace(/[^.\n!?]*\[SCHEDULING LINK\][^.\n!?]*[.!?]?/, REPLY_WITH_TIMES);
+  const row = $(".link", el)?.closest(".row-actions"); if (row) { row.previousElementSibling?.remove(); row.remove(); }
+  checkDrafts();
+}
 const findPlaceholders = (...t) => [...new Set(t.flatMap((x) => x.match(PLACEHOLDER_RE) || []))];
 const validUrl = (u) => /^https?:\/\/[^\s.]+\.[^\s]{2,}$/.test(u.trim());
 
 const draftBlock = (e, name, i) => `<div class="draft-item" data-i="${i}" data-blocked="${e.sendBlocked ? 1 : 0}">
   <div class="section-head" style="margin:0"><div><b>${esc(name)}</b> <span class="muted small">${{ invite: "Invite", decline: "Decline", more_info: "Request for more detail" }[e.kind]} · ${e.draftedBy === "ai" ? "AI draft" : "standard template"}</span></div>
     <label class="small"><input type="checkbox" class="inc" checked> send</label></div>
-  ${e.body.includes(SCHEDULING_LINK) ? `<label class="f">Scheduling link <span style="color:var(--red)">*</span></label><input class="link" placeholder="https://calendly.com/… (required: fills in [SCHEDULING LINK])" data-prev="">` : ""}
+  ${e.body.includes(SCHEDULING_LINK) ? `<label class="f">Scheduling link</label><div class="row-actions"><input class="link" style="flex:1;min-width:200px" placeholder="https://calendly.com/… (fills in [SCHEDULING LINK])" data-prev=""><button type="button" class="btn ghost sm nolink">No link: ask for a reply with times</button></div>` : ""}
   <label class="f">Subject</label><input class="subj" value="${esc(e.subject)}">
   <details ${i === 0 ? "open" : ""}><summary class="muted small" style="margin-top:8px">Message</summary><textarea class="body" rows="10">${esc(e.body)}</textarea></details>
   <div class="ph small" style="color:var(--red);margin-top:6px"></div>
@@ -463,6 +471,7 @@ function checkDrafts() {
   if (btn) { btn.disabled = blocked > 0 || ready === 0; btn.title = blocked ? "Fix the drafts marked in red first" : ""; }
 }
 function wireDrafts() {
+  $("#mbody").addEventListener("click", (ev) => { const b = ev.target.closest(".nolink"); if (b) useReplyWithTimes(b.closest(".draft-item")); });
   $("#mbody").addEventListener("input", checkDrafts);
   $("#mbody").addEventListener("change", checkDrafts);
   checkDrafts();
@@ -506,12 +515,14 @@ async function emailAllPassed() {
   const ok = drafts.filter((d) => d.email);
   const needsLink = ok.some((d) => d.email.body.includes(SCHEDULING_LINK));
   $("#mbody").innerHTML = `<p class="small muted">${ok.length} invite${ok.length === 1 ? "" : "s"} drafted. Edit or untick any, then send. ${ok[0] ? recipientLine(ok[0].email) : ""}</p>
-    ${needsLink ? `<label class="f">Scheduling link for all invites <span style="color:var(--red)">*</span></label><input id="bulklink" placeholder="https://calendly.com/… (fills every invite)">` : ""}
+    ${needsLink ? `<label class="f">Scheduling link for all invites</label><div class="row-actions"><input id="bulklink" style="flex:1;min-width:200px" placeholder="https://calendly.com/… (fills every invite)"><button type="button" class="btn ghost sm" id="bulknolink">No link: ask everyone for times</button></div>` : ""}
     ${drafts.map((d, i) => d.email ? draftBlock(d.email, d.name, i) : `<div class="draft-item"><b>${esc(d.name)}</b> <span style="color:var(--red)">${esc(d.error)}</span></div>`).join("")}
     <div class="row-actions"><button class="btn" id="sendall" ${ok.length && !ok[0].email.sendBlocked ? "" : "disabled"}>Send all selected</button><button class="btn ghost" onclick="closeModal()">Not now (keep as drafts)</button></div>`;
   $("#sendall").onclick = () => sendDrafts(drafts);
   const bl = $("#bulklink");
   if (bl) bl.addEventListener("input", () => { document.querySelectorAll(".draft-item .link").forEach((x) => { x.value = bl.value; }); });
+  const bn = $("#bulknolink");
+  if (bn) bn.onclick = () => { document.querySelectorAll(".draft-item[data-i]").forEach((el) => { if ($(".link", el)) useReplyWithTimes(el); }); bn.closest(".row-actions")?.previousElementSibling?.remove(); bn.closest(".row-actions")?.remove(); };
   wireDrafts();
 }
 

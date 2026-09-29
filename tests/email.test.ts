@@ -23,7 +23,15 @@ describe("email drafting", () => {
     expect(merge("Hi {first_name},", "Asha Menon")).toBe("Hi Asha,");
     expect(merge("Hi {first_name},", "")).toBe("Hi there,");
   });
-  it("templates: invite has the scheduling link and relocation question, decline has neither", () => {
+  it("without a booking link, the invite asks for a reply with times and has no placeholder", async () => {
+    vi.stubEnv("SCHEDULING_URL", "");
+    const { findPlaceholders } = await import("../src/placeholders.js");
+    const inv = templateDraft("invite", draftFacts(e, sc, rr));
+    expect(inv.body).toContain("reply with two or three times");
+    expect(findPlaceholders(inv.subject, inv.body.split("{first_name}").join("X"))).toEqual([]);
+  });
+  it("templates: with a booking link, the invite has the scheduling link and relocation question, decline has neither", () => {
+    vi.stubEnv("SCHEDULING_URL", "https://cal.com/arjun/30min");
     const f = draftFacts(e, sc, rr);
     const inv = templateDraft("invite", f), dec = templateDraft("decline", f);
     expect(inv.body).toContain("[SCHEDULING LINK]");

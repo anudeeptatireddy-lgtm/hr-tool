@@ -14,7 +14,7 @@ cp .env.example .env         # add GEMINI_API_KEY
 npm test                     # unit tests, no API calls
 npm run db:migrate           # create the Neon tables (once)
 npm run backtest             # Milestone 3 acceptance test on the 8 past hires (calls Gemini)
-npx netlify dev --offline    # local site on http://localhost:8888
+npx netlify dev --offline --no-open   # local site on http://localhost:8888
 ```
 
 ## How a CV is screened
