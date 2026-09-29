@@ -1,6 +1,9 @@
 // POST /api/submit {name, data (base64), role} -> {id}. Stores the CV in Neon and starts the background screening.
 import type { Config } from "@netlify/functions";
-import { createJob, finishJob, getJobRecord, setScreeningJob } from "../../src/db";
+import { countRunning, createJob, finishJob, getJobRecord, setScreeningJob } from "../../src/db";
+
+// Each screening is PDF parsing plus 3 AI calls; past this many at once the server slows for everyone.
+const MAX_RUNNING = 6;
 
 const OK_EXT = new Set(["pdf", "docx", "doc", "txt"]);
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -20,6 +23,9 @@ export default async (req: Request) => {
   if (job?.kind === "generated" && job.rubric_status !== "approved") return Response.json({ error: "Approve this job's rubric before screening CVs for it." }, { status: 400 });
   const role = job?.kind === "pattern" ? job.role : body.role === "PM" || body.role === "Senior PM" ? body.role : null;
 
+  if ((await countRunning()) >= MAX_RUNNING) {
+    return Response.json({ error: "Busy screening other CVs. Retrying shortly." }, { status: 429, headers: { "Retry-After": "5" } });
+  }
   const id = crypto.randomUUID();
   await createJob(id, name, role, buf);
   if (job) await setScreeningJob(id, job.ref, job.rubric_version);

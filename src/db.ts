@@ -135,3 +135,9 @@ export async function approveRubric(ref: string): Promise<boolean> {
 export async function setScreeningJob(id: string, jobRef: string, rubricVersion: number): Promise<void> {
   await sql()`update screenings set job_ref = ${jobRef}, rubric_version = ${rubricVersion} where id = ${id}`;
 }
+
+/** Screenings still in progress (started in the last 10 minutes, so a crashed job can't block uploads forever). */
+export async function countRunning(): Promise<number> {
+  const rows = (await sql()`select count(*)::int as n from screenings where status = 'running' and created_at > now() - interval '10 minutes'`) as { n: number }[];
+  return rows[0]?.n ?? 0;
+}

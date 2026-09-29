@@ -18,7 +18,7 @@ let data = null;
 let pollTimer = null;
 
 async function load() {
-  data = await api("/api/dashboard");
+  data = await withRetry(() => api("/api/dashboard"), 3);
   clearTimeout(pollTimer);
   // While any CV is still being screened, check back every few seconds.
   if (data.candidates.some((c) => c.outcome === "screening")) pollTimer = setTimeout(() => load().then(route).catch(() => {}), 5000);
@@ -348,31 +348,79 @@ function openUpload(jobRef = "KRG-PM-01") {
     <label class="f" for="files">CV files (.pdf, .docx, .doc, .txt)</label><input id="files" type="file" multiple accept=".pdf,.docx,.doc,.txt">
     <label class="f" for="urole">Job applied for</label>
     <select id="urole">${data.jobs.filter((j) => j.rubricStatus === "approved").map((j) => `<option value="${j.ref}" ${j.ref === jobRef ? "selected" : ""}>${esc(j.title)} (#${esc(j.ref)})</option>`).join("")}<option value="">Kargo PM or Senior PM: detect from each CV</option></select>
-    <p class="muted small">Names, emails, phone numbers and links are removed before a CV goes to the AI. Each CV takes about 20 seconds; you can close this and keep working.</p>
+    <p class="muted small">Names, emails, phone numbers and links are removed before a CV goes to the AI. CVs are screened 2 at a time (about 20 seconds each), with automatic retries.</p>
     <button class="btn" id="ugo">Upload and screen</button><div id="uprog" style="margin-top:12px"></div>`);
-  $("#ugo").onclick = async () => {
+  $("#ugo").onclick = () => {
     const files = [...$("#files").files];
     if (!files.length) return;
     $("#ugo").disabled = true;
     const jobRef = $("#urole").value || null;
-    $("#uprog").innerHTML = files.map((f, i) => `<div class="small" id="up${i}"><span class="spinner"></span>${esc(f.name)}</div>`).join("");
-    // Two at a time: each CV already runs 3 extraction calls.
-    let next = 0;
-    const worker = async () => {
-      while (next < files.length) {
-        const i = next++, f = files[i];
-        try {
-          if (f.size > 4 * 1024 * 1024) throw new Error("over 4 MB");
-          const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result.split(",")[1]); fr.onerror = rej; fr.readAsDataURL(f); });
-          await api("/api/submit", jobRef ? { name: f.name, data: b64, jobRef } : { name: f.name, data: b64, role: null });
-          $(`#up${i}`).innerHTML = `✓ ${esc(f.name)} <span class="muted">uploaded, screening</span>`;
-        } catch (e) { $(`#up${i}`).innerHTML = `<span style="color:var(--red)">✗ ${esc(f.name)}: ${esc(e.message)}</span>`; }
-      }
-    };
-    await Promise.all([worker(), worker()]);
-    $("#uprog").insertAdjacentHTML("beforeend", '<p class="muted small">Done uploading. Results appear on the dashboard as each screening finishes.</p>');
-    load().then(route);
+    $("#uprog").innerHTML = `<p class="small" id="uqsum"></p>` + files.map((f, i) => `<div class="small" id="up${i}">${esc(f.name)} <span class="muted">queued</span></div>`).join("")
+      + '<p class="muted small">Keep this page open until the queue finishes. You can close this box; the queue keeps going.</p>';
+    runUploadQueue(files, jobRef);
   };
+}
+
+// ---------- upload queue ----------
+// At most UPLOAD_CONCURRENCY CVs are being screened at once: a file isn't started until an earlier one has
+// finished screening (not just uploading), so the server never has more than a few screenings in flight.
+// Each step retries with backoff, and one failed file never stops the rest.
+const UPLOAD_CONCURRENCY = 2;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function withRetry(fn, tries = 3) {
+  for (let k = 0; ; k++) {
+    try { return await fn(); }
+    catch (e) {
+      // Don't retry what won't change: a bad file, an unknown job, an unapproved rubric.
+      if (k >= tries - 1 || (e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429)) throw e;
+      await sleep(1000 * 2 ** k);
+    }
+  }
+}
+const setUp = (i, html) => { const el = document.getElementById(`up${i}`); if (el) el.innerHTML = html; };
+
+async function screenOneFile(f, i, jobRef) {
+  const name = esc(f.name);
+  try {
+    if (f.size > 4 * 1024 * 1024) throw new Error("over 4 MB");
+    setUp(i, `<span class="spinner"></span>${name} <span class="muted">uploading…</span>`);
+    const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result.split(",")[1]); fr.onerror = rej; fr.readAsDataURL(f); });
+    // The server answers 429 when it's busy; wait and try again (up to ~30s) rather than failing the file.
+    const s = await withRetry(() => api("/api/submit", jobRef ? { name: f.name, data: b64, jobRef } : { name: f.name, data: b64, role: null }), 6);
+    const t0 = Date.now();
+    for (;;) {
+      setUp(i, `<span class="spinner"></span>${name} <span class="muted">screening… ${Math.round((Date.now() - t0) / 1000)}s</span>`);
+      await sleep(3000);
+      const r = await withRetry(() => api(`/api/result?id=${s.id}`), 4);
+      if (r.status === "done") {
+        const m = r.result?.summary?.match ?? r.result?.roles?.[r.result.roleUsed]?.total;
+        setUp(i, `✓ ${name} <span class="muted">screened${typeof m === "number" ? `: ${Math.round(m)}%` : ""}</span>`);
+        return true;
+      }
+      if (r.status === "error") throw new Error(r.error || "screening failed");
+      if (Date.now() - t0 > 5 * 60_000) throw new Error("still screening after 5 minutes; check the dashboard later");
+    }
+  } catch (e) {
+    setUp(i, `<span style="color:var(--red)">✗ ${name}: ${esc(e.message)}</span> <button class="btn ghost sm" id="rt${i}">Retry</button>`);
+    const btn = document.getElementById(`rt${i}`);
+    if (btn) btn.onclick = () => runUploadQueue([f], jobRef, [i]);
+    return false;
+  }
+}
+
+async function runUploadQueue(files, jobRef, slots = files.map((_, i) => i)) {
+  let next = 0, ok = 0, bad = 0;
+  const sum = () => { const el = $("#uqsum"); if (el) el.innerHTML = `<b>${ok + bad} of ${files.length} done</b>${bad ? ` · ${bad} failed` : ""}${ok + bad < files.length ? ` · screening ${UPLOAD_CONCURRENCY} at a time` : ""}`; };
+  sum();
+  const worker = async () => {
+    while (next < files.length) {
+      const k = next++;
+      (await screenOneFile(files[k], slots[k], jobRef)) ? ok++ : bad++;
+      sum();
+      load().then(() => { if (!$("#modal").innerHTML) route(); }).catch(() => {});
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, files.length) }, worker));
 }
 
 async function holdOne(id) {
