@@ -63,3 +63,23 @@ describe("sending (hard rules 3 and 4)", () => {
     expect(body.subject).toBe("[Demo] Let's talk");
   });
 });
+
+describe("placeholders block sending", () => {
+  it("finds bracket, mustache, brace and angle placeholders, and TODO", async () => {
+    const { findPlaceholders } = await import("../src/placeholders");
+    expect(findPlaceholders("Pick a time: [SCHEDULING LINK]")).toEqual(["[SCHEDULING LINK]"]);
+    expect(findPlaceholders("Hi {{name}}", "Hi {first_name}", "See <LINK HERE>", "TODO add date")).toEqual(["{{name}}", "{first_name}", "<LINK HERE>", "TODO"]);
+  });
+  it("a finished email has none", async () => {
+    const { findPlaceholders } = await import("../src/placeholders");
+    expect(findPlaceholders("Kargo · Product Manager: let's talk", "Hi Asha,\n\nPick a slot here: https://cal.com/arjun/30min\n\nArjun")).toEqual([]);
+  });
+  it("a configured SCHEDULING_URL is filled in at draft time", () => {
+    vi.stubEnv("SCHEDULING_URL", "https://cal.com/arjun/30min");
+    expect(merge("Book here: [SCHEDULING LINK]", "Asha Rao")).toBe("Book here: https://cal.com/arjun/30min");
+  });
+  it("without one, the placeholder stays so Send stays blocked", () => {
+    vi.stubEnv("SCHEDULING_URL", "");
+    expect(merge("Book here: [SCHEDULING LINK]", "Asha Rao")).toContain("[SCHEDULING LINK]");
+  });
+});

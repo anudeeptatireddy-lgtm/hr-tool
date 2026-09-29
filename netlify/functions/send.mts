@@ -3,11 +3,14 @@
 import type { Config } from "@netlify/functions";
 import { claimDraft, getEmail, markEmail } from "../../src/db";
 import { sendEmail } from "../../src/mailer";
+import { findPlaceholders } from "../../src/placeholders";
 
 export default async (req: Request) => {
   if (req.method !== "POST") return Response.json({ error: "POST only" }, { status: 405 });
   const { emailId, subject, body } = (await req.json().catch(() => ({}))) as { emailId?: string; subject?: string; body?: string };
   if (!emailId || !/^[0-9a-f-]{36}$/.test(emailId) || !subject?.trim() || !body?.trim()) return Response.json({ error: "Subject and body are required." }, { status: 400 });
+  const left = findPlaceholders(subject, body);
+  if (left.length) return Response.json({ error: `Replace ${left.join(", ")} before sending.`, placeholders: left }, { status: 400 });
   const e = await getEmail(emailId);
   if (!e) return Response.json({ error: "Draft not found" }, { status: 404 });
   if (e.status === "sent") return Response.json({ error: "Already sent." }, { status: 409 });

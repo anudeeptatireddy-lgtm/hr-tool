@@ -72,5 +72,8 @@ export async function draftEmailFromFacts(kind: Kind, facts: Facts): Promise<Dra
 /** Merges the placeholders in code, so the model never saw the name. */
 export function merge(text: string, candidateName: string): string {
   const first = candidateName.trim().split(/\s+/)[0] || "there";
-  return text.split("{first_name}").join(first);
+  const link = (process.env.SCHEDULING_URL || "").trim();
+  const out = text.split("{first_name}").join(first);
+  // With a configured booking link the placeholder is filled in; without one it stays, and Send is blocked until it's replaced.
+  return /^https?:\/\//.test(link) ? out.split(SCHEDULING_LINK).join(link) : out;
 }

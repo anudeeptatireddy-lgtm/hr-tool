@@ -383,12 +383,46 @@ async function holdOne(id) {
   try { await api("/api/decide", { id, decision: "hold" }); await load(); route(); } catch (e) { alert(e.message); }
 }
 
-const draftBlock = (e, name, i) => `<div class="draft-item" data-i="${i}">
+// Same pattern as src/placeholders.ts (the server refuses these too).
+const PLACEHOLDER_RE = /\[[^\]\n]{1,60}\]|\{\{[^}\n]{0,60}\}\}|\{[a-z_][a-z0-9_]{0,40}\}|<[A-Z][A-Z0-9_ ]{1,40}>|\b(?:TODO|TBD|XXX)\b/g;
+const SCHEDULING_LINK = "[SCHEDULING LINK]";
+const findPlaceholders = (...t) => [...new Set(t.flatMap((x) => x.match(PLACEHOLDER_RE) || []))];
+const validUrl = (u) => /^https?:\/\/[^\s.]+\.[^\s]{2,}$/.test(u.trim());
+
+const draftBlock = (e, name, i) => `<div class="draft-item" data-i="${i}" data-blocked="${e.sendBlocked ? 1 : 0}">
   <div class="section-head" style="margin:0"><div><b>${esc(name)}</b> <span class="muted small">${e.kind === "invite" ? "Invite" : "Decline"} · ${e.draftedBy === "ai" ? "AI draft" : "standard template"}</span></div>
     <label class="small"><input type="checkbox" class="inc" checked> send</label></div>
+  ${e.body.includes(SCHEDULING_LINK) ? `<label class="f">Scheduling link <span style="color:var(--red)">*</span></label><input class="link" placeholder="https://calendly.com/… (required: fills in [SCHEDULING LINK])" data-prev="">` : ""}
   <label class="f">Subject</label><input class="subj" value="${esc(e.subject)}">
   <details ${i === 0 ? "open" : ""}><summary class="muted small" style="margin-top:8px">Message</summary><textarea class="body" rows="10">${esc(e.body)}</textarea></details>
+  <div class="ph small" style="color:var(--red);margin-top:6px"></div>
   <div class="st small muted"></div></div>`;
+
+/** Fills the scheduling link into the message, and re-checks every draft; Send is enabled only when all ticked drafts are clean. */
+function checkDrafts() {
+  let ready = 0, blocked = 0;
+  for (const el of document.querySelectorAll(".draft-item[data-i]")) {
+    const link = $(".link", el), body = $(".body", el);
+    if (link) {
+      const v = link.value.trim(), prev = link.dataset.prev;
+      if (validUrl(v) && v !== prev) { body.value = body.value.split(prev || SCHEDULING_LINK).join(v); link.dataset.prev = v; }
+      else if (!validUrl(v) && prev) { body.value = body.value.split(prev).join(SCHEDULING_LINK); link.dataset.prev = ""; }
+    }
+    const needLink = link && !validUrl(link.value);
+    // The scheduling placeholder is covered by the "add the scheduling link" message; list only the others.
+    const left = findPlaceholders($(".subj", el).value, body.value).filter((p) => !(needLink && p === SCHEDULING_LINK));
+    $(".ph", el).innerHTML = left.length || needLink ? `Can't send yet: ${needLink ? "add the scheduling link" : ""}${needLink && left.length ? "; " : ""}${left.length ? `replace ${left.map((p) => `<code>${esc(p)}</code>`).join(", ")} in the ${findPlaceholders($(".subj", el).value).length ? "subject/" : ""}message` : ""}.` : "";
+    if (!$(".inc", el).checked) continue;
+    if (left.length || needLink || el.dataset.blocked === "1") blocked++; else ready++;
+  }
+  const btn = $("#sendbtn") || $("#sendall");
+  if (btn) { btn.disabled = blocked > 0 || ready === 0; btn.title = blocked ? "Fix the drafts marked in red first" : ""; }
+}
+function wireDrafts() {
+  $("#mbody").addEventListener("input", checkDrafts);
+  $("#mbody").addEventListener("change", checkDrafts);
+  checkDrafts();
+}
 const recipientLine = (e) => e.sendBlocked ? `<span style="color:var(--red)">${esc(e.sendBlocked)}</span>` : `Will send to <b>${esc(e.willSendTo)}</b>${e.demo ? " (demo mode: all email goes to your own inbox, never the candidate's)" : ""}.`;
 
 async function emailOne(id, decision, confirmBelowThreshold = false) {
@@ -404,6 +438,7 @@ async function emailOne(id, decision, confirmBelowThreshold = false) {
     $("#mbody").innerHTML = `${draftBlock(d.email, c.name, 0)}<p class="small muted">${recipientLine(d.email)}</p>
       <div class="row-actions"><button class="btn" id="sendbtn" ${d.email.sendBlocked ? "disabled" : ""}>Send email</button><button class="btn ghost" onclick="closeModal()">Not now (keep as draft)</button></div>`;
     $("#sendbtn").onclick = () => sendDrafts([{ email: d.email, name: c.name }]);
+    wireDrafts();
   } catch (e) { $("#mbody").innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`; }
 }
 
@@ -425,10 +460,15 @@ async function emailAllPassed() {
     catch (e) { drafts.push({ error: e.message, name: c.name }); }
   }
   const ok = drafts.filter((d) => d.email);
+  const needsLink = ok.some((d) => d.email.body.includes(SCHEDULING_LINK));
   $("#mbody").innerHTML = `<p class="small muted">${ok.length} invite${ok.length === 1 ? "" : "s"} drafted. Edit or untick any, then send. ${ok[0] ? recipientLine(ok[0].email) : ""}</p>
+    ${needsLink ? `<label class="f">Scheduling link for all invites <span style="color:var(--red)">*</span></label><input id="bulklink" placeholder="https://calendly.com/… (fills every invite)">` : ""}
     ${drafts.map((d, i) => d.email ? draftBlock(d.email, d.name, i) : `<div class="draft-item"><b>${esc(d.name)}</b> <span style="color:var(--red)">${esc(d.error)}</span></div>`).join("")}
     <div class="row-actions"><button class="btn" id="sendall" ${ok.length && !ok[0].email.sendBlocked ? "" : "disabled"}>Send all selected</button><button class="btn ghost" onclick="closeModal()">Not now (keep as drafts)</button></div>`;
   $("#sendall").onclick = () => sendDrafts(drafts);
+  const bl = $("#bulklink");
+  if (bl) bl.addEventListener("input", () => { document.querySelectorAll(".draft-item .link").forEach((x) => { x.value = bl.value; }); });
+  wireDrafts();
 }
 
 async function sendDrafts(drafts) {
@@ -439,6 +479,7 @@ async function sendDrafts(drafts) {
     const d = drafts[+el.dataset.i];
     const st = $(".st", el);
     if (!d?.email || !$(".inc", el).checked) { st.textContent = "Not sent (kept as draft)."; continue; }
+    if (findPlaceholders($(".subj", el).value, $(".body", el).value).length) { st.innerHTML = '<span style="color:var(--red)">Not sent: placeholders left.</span>'; continue; }
     st.innerHTML = '<span class="spinner"></span>Sending…';
     try { const r = await api("/api/send", { emailId: d.email.id, subject: $(".subj", el).value, body: $(".body", el).value }); st.innerHTML = `<span class="pill sent">Sent</span> to ${esc(r.to)}`; sent++; }
     catch (e) { st.innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`; }
