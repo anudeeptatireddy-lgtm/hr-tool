@@ -83,3 +83,19 @@ Choices made where the spec was silent. Anything touching weights, thresholds, e
 36. **AI call 2 drafts the email** from non-identifying facts: the role, strengths reworded from the signal reasons with employer names removed, and whether to ask about relocation. The name is merged in code as `{first_name}`. Drafts that mention scores, bands, rubric, signals, screening or AI, or lack the name placeholder, are rejected, and a fixed template is used instead. The invite has the `[SCHEDULING LINK]` placeholder and the relocation question when location is unknown.
 37. **Demo mode is on by default.** Every email goes to `DEMO_RECIPIENT` with a "[Demo]" subject prefix. If `DEMO_RECIPIENT` is missing or still the placeholder, sending is refused rather than falling back to the candidate's address (hard rule 4). The sender is `onboarding@resend.dev` until a domain is verified in Resend.
 38. **The Resend key is scoped to this project only:** it lives in `~/hr-tool/.env` and in the `hrtoolproject` site's own env vars (secret). It isn't in team-level Netlify variables or the shell profile.
+
+## Dashboard UI (user's HireSync-style mockup)
+
+39. **The front end is a single-page app** (`public/index.html`, `app.js`, `app.css`) in the dark style of the user's mockup, with hash routes:
+    - **Dashboard:** tiles, top candidate matches, quick actions, job openings, recent emails.
+    - **Jobs:** each JD with its gates, a download link, and every CV received for it, with dates.
+    - **Candidates:** Passed / Borderline / Failed / Screening tabs.
+    - **Candidate detail:** the card, signals, both roles and the evidence.
+    - **Emails & log:** decisions and emails, with CSV export (the Milestone 7 audit view, done early).
+    - **Back-test.**
+    
+    The old `backtest.html` and `style.css` were removed.
+40. **"Match %" is the role's weighted total** (0–100). Passed = Shortlist: 65%+ with every gate met. Failed = under 45%, or any gate failed; the pill says "Failed gate" and the tooltip names the gate. When fewer than 5 candidates pass, the dashboard shows the top 5 labelled "below the pattern threshold" (hard rule 6).
+41. **Bulk email keeps the founder's approval.** "Email all passed" drafts an invite for each passed candidate who hasn't been emailed, then shows every draft (editable, each with a tick box). Nothing goes out until "Send all selected". Row buttons: Invite for passed candidates, Send decline for everyone else. Both open a draft first.
+42. **Bulk upload** screens CVs two at a time, since each CV already makes 3 extraction calls. The dashboard refreshes every 5 seconds while any CV is still screening.
+43. **Jobs are fixed in code** (`src/jobs.ts`): only the two roles the rubric was built for. There's no "Upload new JD", because a new role would need its own rubric and back-test.

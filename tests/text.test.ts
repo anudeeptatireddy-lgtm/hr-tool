@@ -34,8 +34,8 @@ describe("quotes and JSON", () => {
 describe("privacy guards", () => {
   it("no past-hire name appears in any source, prompt or script", () => {
     const files = [...readdirSync(join(ROOT, "src")).map((f) => join(ROOT, "src", f)), ...readdirSync(join(ROOT, "src", "prompts")).map((f) => join(ROOT, "src", "prompts", f)),
-      ...readdirSync(join(ROOT, "scripts")).map((f) => join(ROOT, "scripts", f)), ...readdirSync(join(ROOT, "netlify", "functions")).map((f) => join(ROOT, "netlify", "functions", f)), join(ROOT, "public", "index.html")]
-      .filter((f) => /\.(ts|mts|html)$/.test(f));
+      ...readdirSync(join(ROOT, "scripts")).map((f) => join(ROOT, "scripts", f)), ...readdirSync(join(ROOT, "netlify", "functions")).map((f) => join(ROOT, "netlify", "functions", f)), join(ROOT, "public", "index.html"), join(ROOT, "public", "app.js")]
+      .filter((f) => /\.(ts|mts|html|js)$/.test(f));
     const hits = files.flatMap((f) => nameParts.filter((n) => readFileSync(f, "utf8").toLowerCase().includes(n.toLowerCase())).map((n) => `${f}: ${n}`));
     expect(hits).toEqual([]);
   });

@@ -74,3 +74,21 @@ export async function markEmail(id: string, ok: boolean, sentTo: string, resendI
   await sql()`update emails set status = ${ok ? "sent" : "draft"}, sent_to = ${sentTo || null}, resend_id = ${resendId || null},
     error = ${error || null}, sent_at = ${ok ? new Date().toISOString() : null} where id = ${id}`;
 }
+
+// ---------- dashboard and audit ----------
+
+export async function listScreenings(): Promise<any[]> {
+  return (await sql()`
+    select s.id, s.file_name, s.role as role_selected, s.status, s.error, s.created_at, s.finished_at, s.result,
+      (select json_build_object('decision', d.decision, 'at', d.created_at) from decisions d where d.screening_id = s.id order by d.created_at desc limit 1) as last_decision,
+      (select json_build_object('kind', e.kind, 'status', e.status, 'at', coalesce(e.sent_at, e.created_at)) from emails e where e.screening_id = s.id and e.status = 'sent' order by e.sent_at desc limit 1) as last_sent
+    from screenings s order by s.created_at desc limit 500`) as any[];
+}
+
+export async function auditLog(): Promise<{ decisions: any[]; emails: any[] }> {
+  const decisions = (await sql()`select d.id, d.created_at, d.decision, d.role, d.score, d.band, d.rationale, s.result->'candidate'->>'name' as candidate, s.file_name
+    from decisions d join screenings s on s.id = d.screening_id order by d.created_at desc limit 1000`) as any[];
+  const emails = (await sql()`select e.id, e.created_at, e.sent_at, e.kind, e.status, e.drafted_by, e.sent_to, e.subject, s.result->'candidate'->>'name' as candidate
+    from emails e join screenings s on s.id = e.screening_id order by e.created_at desc limit 1000`) as any[];
+  return { decisions, emails };
+}

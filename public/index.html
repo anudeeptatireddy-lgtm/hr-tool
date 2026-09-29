@@ -2,135 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HR Tool Screener</title>
-<link rel="stylesheet" href="/style.css">
+<title>HR Tool</title>
+<link rel="stylesheet" href="/app.css">
 </head>
 <body>
-<main>
-  <header>
-    <div><h1>HR Tool · CV screener</h1><div class="muted small">Screen a CV, then decide. Emails are drafted for you and only sent when you click Send.</div></div>
-    <a href="/backtest.html">Back-test on past hires →</a>
-  </header>
-
-  <section class="panel">
-    <form id="f">
-      <div><label for="file">CV file</label><input id="file" type="file" accept=".pdf,.docx,.doc,.txt" required></div>
-      <div><label for="role">Role applied for</label>
-        <select id="role"><option value="PM">Product Manager</option><option value="Senior PM">Senior Product Manager</option><option value="">Not sure: detect from the CV</option></select></div>
-      <button id="go" type="submit">Screen this CV</button>
-      <div class="muted small">Name, email, phone and profile links are removed before the CV goes to the AI. Takes about 20–40 seconds.</div>
-    </form>
-  </section>
-
-  <div id="status"></div>
-  <div id="out"></div>
-</main>
-<script>
-const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const NAMES = { S1: "Hands-on logistics ops", S2: "Built a fix others adopted", S3: "Owned the outcome", S4: "Kills and post-mortems" };
-
-$("#f").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const file = $("#file").files[0];
-  if (!file) return;
-  $("#go").disabled = true; $("#out").innerHTML = "";
-  setStatus('<span class="spinner"></span>Uploading…');
-  try {
-    const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
-    const sub = await fetch("/api/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: file.name, data, role: $("#role").value || null }) });
-    const s = await sub.json();
-    if (!sub.ok) throw new Error(s.error || "Upload failed");
-    const started = Date.now();
-    for (;;) {
-      setStatus(`<span class="spinner"></span>Screening… ${Math.round((Date.now() - started) / 1000)}s (3 extraction runs, median kept)`);
-      await new Promise((r) => setTimeout(r, 2500));
-      const j = await (await fetch(`/api/result?id=${s.id}`)).json();
-      if (j.status === "done") { setStatus(""); render(j.result, s.id); break; }
-      if (j.status === "error") throw new Error(j.error || "Screening failed");
-      if (Date.now() - started > 5 * 60_000) throw new Error("Timed out. Try again.");
-    }
-  } catch (err) {
-    setStatus(`<div class="panel error">${esc(err.message)}</div>`);
-  } finally { $("#go").disabled = false; }
-});
-
-function setStatus(html) { $("#status").innerHTML = html ? (html.startsWith("<div") ? html : `<div class="panel">${html}</div>`) : ""; }
-
-let current = null;
-function render(r, id) {
-  current = { id, role: r.roleUsed };
-  const role = r.roles[r.roleUsed], card = r.card, sig = r.scored.signals;
-  const gateRows = (rr) => rr.gates.map((g) => `<div><span class="pill ${g.status}">${g.status}</span> ${esc(g.name)} <span class="muted small">${esc(g.detail)}</span></div>`).join("");
-  $("#out").innerHTML = `
-  <section class="panel">
-    <div class="headline">${esc(r.candidate.name || "Name not found")} · ${esc(r.roleUsed)} · <span class="score">${role.total}</span> <span class="pill ${role.recommendation}">${role.recommendation}${role.gateFailed ? " (gate)" : ""}</span></div>
-    <div class="muted small">Role ${esc(r.roleNote)}. Score bands: 65+ Shortlist · 45–64 Borderline · under 45 Decline.${r.scored.lowConfidence ? " <b>Low confidence:</b> S1 rests on thin evidence." : ""}</div>
-    <h3>Why ranked here</h3>
-    <ul>${card.why.map((w) => `<li>${esc(w.line)}<blockquote>“${esc(w.quote)}”</blockquote></li>`).join("") || "<li class='muted'>No signal scored above 0.</li>"}</ul>
-    <h3>Risk</h3><p>${esc(card.risk)}</p>
-    <h3>Probe questions</h3>
-    <ul>${card.probes.map((p) => `<li><b>${p.signal}:</b> ${esc(p.ask)}<div class="muted small">Strong: ${esc(p.strong)} · Weak: ${esc(p.weak)}</div></li>`).join("")}</ul>
-    <h3>Your decision</h3>
-    <div class="actions">
-      <button type="button" class="adv" onclick="decide('advance')">Advance</button>
-      <button type="button" class="hold" onclick="decide('hold')">Hold</button>
-      <button type="button" class="dec" onclick="decide('decline')">Decline</button>
+<div class="shell">
+  <aside>
+    <div class="brand"><div class="logo">HR</div>HR Tool</div>
+    <nav id="nav">
+      <a href="#/" data-r="dash"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+      <a href="#/jobs" data-r="jobs"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg>Jobs</a>
+      <a href="#/candidates" data-r="candidates"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.5 3.5 5.2"/></svg>Candidates</a>
+      <a href="#/emails" data-r="emails"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Emails &amp; log</a>
+      <a href="#/backtest" data-r="backtest"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Back-test</a>
+    </nav>
+    <div class="aside-foot">Demo mode: emails go to your own inbox, never to candidates.</div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <input class="search" id="search" placeholder="Search candidates…" autocomplete="off">
+      <div class="user"><div class="avatar">AM</div>Arjun M.</div>
     </div>
-    <div id="decision"></div>
-  </section>
-
-  <section class="panel">
-    <h2>Signal scores (0–3)</h2>
-    <div class="table-wrap"><table><thead><tr><th>Signal</th><th class="num">Score</th><th>Why, and the CV line it rests on</th></tr></thead><tbody>
-      ${["S1", "S2", "S3", "S4"].map((s) => `<tr><td><b>${s}</b> ${NAMES[s]}</td><td class="num score">${sig[s].score}</td><td>${esc(sig[s].reason)}${sig[s].quote ? `<blockquote>“${esc(sig[s].quote)}”</blockquote>` : ""}</td></tr>`).join("")}
-    </tbody></table></div>
-    <div class="muted small" style="margin-top:8px">Totals from the 3 extraction runs: ${r.runTotals.join(" / ")} (default weights). The median run is shown.</div>
-    ${r.scored.flags.length ? `<h3>Flagged (no credit given)</h3><ul>${r.scored.flags.map((f) => `<li>${esc(f.field)}: ${esc(f.issue)}${f.quote ? `<blockquote>${esc(f.quote)}</blockquote>` : ""}</li>`).join("")}</ul>` : ""}
-  </section>
-
-  <section class="panel">
-    <h2>Both roles</h2>
-    <div class="table-wrap"><table><thead><tr><th>Role</th><th>Weights S1/S2/S3/S4</th><th class="num">Total</th><th>Result</th><th>Gates</th></tr></thead><tbody>
-      ${["PM", "Senior PM"].map((k) => { const x = r.roles[k]; return `<tr><td>${k}${k === r.roleUsed ? " ✓" : ""}</td><td>${x.weights.S1}/${x.weights.S2}/${x.weights.S3}/${x.weights.S4}</td><td class="num score">${x.total}</td><td><span class="pill ${x.recommendation}">${x.recommendation}</span></td><td>${gateRows(x)}</td></tr>`; }).join("")}
-    </tbody></table></div>
-  </section>
-
-  <section class="panel"><details><summary>Extracted evidence (what scoring saw)</summary><pre>${esc(JSON.stringify(r.evidence, null, 2))}</pre></details></section>`;
-}
-
-async function decide(decision) {
-  const box = $("#decision");
-  document.querySelectorAll(".actions button").forEach((b) => (b.disabled = true));
-  box.innerHTML = `<p><span class="spinner"></span>${decision === "hold" ? "Logging…" : "Logging your decision and drafting the email…"}</p>`;
-  try {
-    const res = await fetch("/api/decide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: current.id, decision, role: current.role }) });
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.error || "Couldn't save the decision");
-    const when = new Date(d.loggedAt).toLocaleString();
-    if (decision === "hold") { box.innerHTML = `<p class="pill ask">On hold</p> <span class="muted small">Logged ${esc(when)}. No email drafted.</span>`; return; }
-    const e = d.email;
-    box.innerHTML = `
-      <p class="muted small">${decision === "advance" ? "Advance" : "Decline"} logged ${esc(when)}. Draft ${e.draftedBy === "ai" ? "written by AI" : "from the standard template"}: edit anything, then send. Nothing goes out until you click Send.</p>
-      <div class="draft">
-        <label for="subj">Subject</label><input id="subj" value="${esc(e.subject)}">
-        <label for="body">Message</label><textarea id="body" rows="12">${esc(e.body)}</textarea>
-        <div class="muted small">${e.sendBlocked ? `<span class="error">${esc(e.sendBlocked)}</span>` : `Will send to <b>${esc(e.willSendTo)}</b>${e.demo ? " (demo mode: every email goes to your own address, never the candidate's)" : ""}.`}</div>
-        <button type="button" id="send" ${e.sendBlocked ? "disabled" : ""}>Send email</button>
-        <div id="sent"></div>
-      </div>`;
-    $("#send").onclick = async () => {
-      $("#send").disabled = true; $("#sent").innerHTML = '<span class="spinner"></span>Sending…';
-      const s = await fetch("/api/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emailId: e.id, subject: $("#subj").value, body: $("#body").value }) });
-      const sj = await s.json();
-      if (s.ok) $("#sent").innerHTML = `<span class="pill pass">Sent</span> to ${esc(sj.to)}`;
-      else { $("#sent").innerHTML = `<span class="error">${esc(sj.error)}</span>`; $("#send").disabled = false; }
-    };
-  } catch (err) {
-    box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
-    document.querySelectorAll(".actions button").forEach((b) => (b.disabled = false));
-  }
-}
-</script>
+    <div class="content" id="view"><div class="empty"><span class="spinner"></span>Loading…</div></div>
+  </div>
+</div>
+<div id="modal"></div>
+<script src="/app.js"></script>
 </body>
 </html>
