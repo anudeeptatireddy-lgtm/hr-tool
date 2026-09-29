@@ -36,3 +36,41 @@ export async function getJob(id: string): Promise<Job | null> {
   const r = rows[0];
   return { status: r.status, error: r.error, result: r.result, name: r.file_name, role: r.role };
 }
+
+// ---------- decisions and emails ----------
+
+export type Decision = "advance" | "decline" | "hold";
+
+export async function getScreening(id: string): Promise<any | null> {
+  const rows = (await sql()`select result from screenings where id = ${id} and status = 'done'`) as { result: any }[];
+  return rows[0]?.result ?? null;
+}
+
+export async function logDecision(screeningId: string, decision: Decision, role: string, score: number, band: string, rationale: string): Promise<{ id: string; created_at: string }> {
+  const rows = (await sql()`insert into decisions (screening_id, decision, role, score, band, rationale)
+    values (${screeningId}, ${decision}, ${role}, ${score}, ${band}, ${rationale}) returning id, created_at`) as { id: string; created_at: string }[];
+  return rows[0];
+}
+
+export async function createDraft(screeningId: string, decisionId: string, kind: "invite" | "decline", candidateTo: string, subject: string, body: string, draftedBy: string): Promise<string> {
+  const rows = (await sql()`insert into emails (screening_id, decision_id, kind, candidate_to, subject, body, drafted_by)
+    values (${screeningId}, ${decisionId}, ${kind}, ${candidateTo || null}, ${subject}, ${body}, ${draftedBy}) returning id`) as { id: string }[];
+  return rows[0].id;
+}
+
+export async function getEmail(id: string): Promise<{ id: string; candidate_to: string | null; status: string } | null> {
+  const rows = (await sql()`select id, candidate_to, status from emails where id = ${id}`) as { id: string; candidate_to: string | null; status: string }[];
+  return rows[0] ?? null;
+}
+
+/** Claims a draft for sending so a double click can't send it twice. */
+export async function claimDraft(id: string, subject: string, body: string): Promise<boolean> {
+  const rows = (await sql()`update emails set subject = ${subject}, body = ${body}, status = 'failed', error = 'sending'
+    where id = ${id} and status = 'draft' returning id`) as { id: string }[];
+  return rows.length === 1;
+}
+
+export async function markEmail(id: string, ok: boolean, sentTo: string, resendId: string, error: string): Promise<void> {
+  await sql()`update emails set status = ${ok ? "sent" : "draft"}, sent_to = ${sentTo || null}, resend_id = ${resendId || null},
+    error = ${error || null}, sent_at = ${ok ? new Date().toISOString() : null} where id = ${id}`;
+}

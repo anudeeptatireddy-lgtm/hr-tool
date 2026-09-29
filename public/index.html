@@ -8,7 +8,7 @@
 <body>
 <main>
   <header>
-    <div><h1>HR Tool · CV screener</h1><div class="muted small">Logic test: extraction, scoring and the candidate card. No emails are sent.</div></div>
+    <div><h1>HR Tool · CV screener</h1><div class="muted small">Screen a CV, then decide. Emails are drafted for you and only sent when you click Send.</div></div>
     <a href="/backtest.html">Back-test on past hires →</a>
   </header>
 
@@ -46,7 +46,7 @@ $("#f").addEventListener("submit", async (e) => {
       setStatus(`<span class="spinner"></span>Screening… ${Math.round((Date.now() - started) / 1000)}s (3 extraction runs, median kept)`);
       await new Promise((r) => setTimeout(r, 2500));
       const j = await (await fetch(`/api/result?id=${s.id}`)).json();
-      if (j.status === "done") { setStatus(""); render(j.result); break; }
+      if (j.status === "done") { setStatus(""); render(j.result, s.id); break; }
       if (j.status === "error") throw new Error(j.error || "Screening failed");
       if (Date.now() - started > 5 * 60_000) throw new Error("Timed out. Try again.");
     }
@@ -57,7 +57,9 @@ $("#f").addEventListener("submit", async (e) => {
 
 function setStatus(html) { $("#status").innerHTML = html ? (html.startsWith("<div") ? html : `<div class="panel">${html}</div>`) : ""; }
 
-function render(r) {
+let current = null;
+function render(r, id) {
+  current = { id, role: r.roleUsed };
   const role = r.roles[r.roleUsed], card = r.card, sig = r.scored.signals;
   const gateRows = (rr) => rr.gates.map((g) => `<div><span class="pill ${g.status}">${g.status}</span> ${esc(g.name)} <span class="muted small">${esc(g.detail)}</span></div>`).join("");
   $("#out").innerHTML = `
@@ -69,6 +71,13 @@ function render(r) {
     <h3>Risk</h3><p>${esc(card.risk)}</p>
     <h3>Probe questions</h3>
     <ul>${card.probes.map((p) => `<li><b>${p.signal}:</b> ${esc(p.ask)}<div class="muted small">Strong: ${esc(p.strong)} · Weak: ${esc(p.weak)}</div></li>`).join("")}</ul>
+    <h3>Your decision</h3>
+    <div class="actions">
+      <button type="button" class="adv" onclick="decide('advance')">Advance</button>
+      <button type="button" class="hold" onclick="decide('hold')">Hold</button>
+      <button type="button" class="dec" onclick="decide('decline')">Decline</button>
+    </div>
+    <div id="decision"></div>
   </section>
 
   <section class="panel">
@@ -88,6 +97,39 @@ function render(r) {
   </section>
 
   <section class="panel"><details><summary>Extracted evidence (what scoring saw)</summary><pre>${esc(JSON.stringify(r.evidence, null, 2))}</pre></details></section>`;
+}
+
+async function decide(decision) {
+  const box = $("#decision");
+  document.querySelectorAll(".actions button").forEach((b) => (b.disabled = true));
+  box.innerHTML = `<p><span class="spinner"></span>${decision === "hold" ? "Logging…" : "Logging your decision and drafting the email…"}</p>`;
+  try {
+    const res = await fetch("/api/decide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: current.id, decision, role: current.role }) });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || "Couldn't save the decision");
+    const when = new Date(d.loggedAt).toLocaleString();
+    if (decision === "hold") { box.innerHTML = `<p class="pill ask">On hold</p> <span class="muted small">Logged ${esc(when)}. No email drafted.</span>`; return; }
+    const e = d.email;
+    box.innerHTML = `
+      <p class="muted small">${decision === "advance" ? "Advance" : "Decline"} logged ${esc(when)}. Draft ${e.draftedBy === "ai" ? "written by AI" : "from the standard template"}: edit anything, then send. Nothing goes out until you click Send.</p>
+      <div class="draft">
+        <label for="subj">Subject</label><input id="subj" value="${esc(e.subject)}">
+        <label for="body">Message</label><textarea id="body" rows="12">${esc(e.body)}</textarea>
+        <div class="muted small">${e.sendBlocked ? `<span class="error">${esc(e.sendBlocked)}</span>` : `Will send to <b>${esc(e.willSendTo)}</b>${e.demo ? " (demo mode: every email goes to your own address, never the candidate's)" : ""}.`}</div>
+        <button type="button" id="send" ${e.sendBlocked ? "disabled" : ""}>Send email</button>
+        <div id="sent"></div>
+      </div>`;
+    $("#send").onclick = async () => {
+      $("#send").disabled = true; $("#sent").innerHTML = '<span class="spinner"></span>Sending…';
+      const s = await fetch("/api/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emailId: e.id, subject: $("#subj").value, body: $("#body").value }) });
+      const sj = await s.json();
+      if (s.ok) $("#sent").innerHTML = `<span class="pill pass">Sent</span> to ${esc(sj.to)}`;
+      else { $("#sent").innerHTML = `<span class="error">${esc(sj.error)}</span>`; $("#send").disabled = false; }
+    };
+  } catch (err) {
+    box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+    document.querySelectorAll(".actions button").forEach((b) => (b.disabled = false));
+  }
 }
 </script>
 </body>
