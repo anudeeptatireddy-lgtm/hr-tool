@@ -1,6 +1,6 @@
 // The card Arjun sees (SPEC.md "What Arjun sees"): headline, 2 "why ranked here" lines with quotes,
 // 1 risk line, 3 probe questions aimed at the weakest signals. Built in code from the scored record.
-import type { Scored, Signal, RoleResult } from "./scoring";
+import type { Scored, Signal, RoleResult } from "./scoring.js";
 
 const NAMES: Record<Signal, string> = { S1: "Hands-on logistics ops", S2: "Built a fix others adopted", S3: "Owned the outcome", S4: "Kills and post-mortems" };
 

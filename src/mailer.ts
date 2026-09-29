@@ -1,5 +1,5 @@
 // Sends one email via Resend. Only ever called from the founder's Send click (hard rule 3).
-import { DEMO_MODE } from "./config";
+import { DEMO_MODE } from "./config.js";
 
 export type SendResult = { ok: boolean; id: string; sentTo: string; error: string };
 

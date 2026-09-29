@@ -1,13 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildCard } from "../src/card";
-import { quoteInText } from "../src/extraction";
-import { extractText } from "../src/extractText";
-import { parseJson } from "../src/gemini";
-import { redactIdentity } from "../src/redact";
-import { forRole, scoreSignals } from "../src/scoring";
-import { ev } from "./helpers";
+import { buildCard } from "../src/card.js";
+import { quoteInText } from "../src/extraction.js";
+import { extractText } from "../src/extractText.js";
+import { parseJson } from "../src/gemini.js";
+import { redactIdentity } from "../src/redact.js";
+import { forRole, scoreSignals } from "../src/scoring.js";
+import { ev } from "./helpers.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const HIRES = join(ROOT, "data", "hires");
@@ -33,7 +33,7 @@ describe("quotes and JSON", () => {
 
 describe("privacy guards", () => {
   it("no past-hire name appears in any source, prompt or script", () => {
-    const files = [...readdirSync(join(ROOT, "src")).map((f) => join(ROOT, "src", f)), ...readdirSync(join(ROOT, "src", "prompts")).map((f) => join(ROOT, "src", "prompts", f)),
+    const files = [...readdirSync(join(ROOT, "src")).map((f) => join(ROOT, "src", f)), ...readdirSync(join(ROOT, "src", "prompts")).map((f) => join(ROOT, "src", "prompts", f)), ...readdirSync(join(ROOT, "src", "handlers")).map((f) => join(ROOT, "src", "handlers", f)), ...readdirSync(join(ROOT, "api")).map((f) => join(ROOT, "api", f)),
       ...readdirSync(join(ROOT, "scripts")).map((f) => join(ROOT, "scripts", f)), ...readdirSync(join(ROOT, "netlify", "functions")).map((f) => join(ROOT, "netlify", "functions", f)), join(ROOT, "public", "index.html"), join(ROOT, "public", "app.js")]
       .filter((f) => /\.(ts|mts|html|js)$/.test(f));
     const hits = files.flatMap((f) => nameParts.filter((n) => readFileSync(f, "utf8").toLowerCase().includes(n.toLowerCase())).map((n) => `${f}: ${n}`));

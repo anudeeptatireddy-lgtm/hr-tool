@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REVIEW_SPREAD, spreadOf } from "../src/consensus";
+import { REVIEW_SPREAD, spreadOf } from "../src/consensus.js";
 
 describe("inconsistent scoring is flagged, not silently resolved", () => {
   it("runs within 10 points are fine", () => {

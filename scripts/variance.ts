@@ -4,10 +4,10 @@ import "dotenv/config";
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { neon } from "@neondatabase/serverless";
-import { extractEvidence } from "../src/extraction";
-import { extractText } from "../src/extractText";
-import { redactIdentity } from "../src/redact";
-import { DEFAULT_WEIGHTS, scoreSignals, total, type Signal } from "../src/scoring";
+import { extractEvidence } from "../src/extraction.js";
+import { extractText } from "../src/extractText.js";
+import { redactIdentity } from "../src/redact.js";
+import { DEFAULT_WEIGHTS, scoreSignals, total, type Signal } from "../src/scoring.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const DIR = join(ROOT, "data", "applications");

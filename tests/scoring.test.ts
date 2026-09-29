@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { band, DEFAULT_WEIGHTS, forRole, gates, scoreSignals, total, WEIGHTS } from "../src/scoring";
-import { ev } from "./helpers";
+import { band, DEFAULT_WEIGHTS, forRole, gates, scoreSignals, total, WEIGHTS } from "../src/scoring.js";
+import { ev } from "./helpers.js";
 
 const CV = [
   "Prepared Bills of Lading and coordinated with CHA for 180+ shipments monthly",

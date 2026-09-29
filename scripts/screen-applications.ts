@@ -10,9 +10,9 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
-import { createJob, finishJob, replaceResult } from "../src/db";
-import { screen } from "../src/screen";
-import type { Role } from "../src/scoring";
+import { createJob, finishJob, replaceResult } from "../src/db.js";
+import { screen } from "../src/screen.js";
+import type { Role } from "../src/scoring.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const DIR = join(ROOT, "data", "applications");
@@ -57,8 +57,8 @@ async function worker() {
     if (seenHash.has(hash)) { skipped.push(`${f} (identical file)`); done++; continue; }
     seenHash.add(hash);
     // Name is found locally before any AI call, so a duplicate is skipped without spending AI calls.
-    const { redactIdentity } = await import("../src/redact");
-    const { extractText } = await import("../src/extractText");
+    const { redactIdentity } = await import("../src/redact.js");
+    const { extractText } = await import("../src/extractText.js");
     const pre = redactIdentity((await extractText(f, buf)).text, f);
     const name = pre.name.toLowerCase(), email = pre.email.toLowerCase();
     if ((name && seenName.has(name)) || (!name && email && seenEmailNoName.has(email))) { skipped.push(`${f} (already screened: same name)`); done++; continue; }

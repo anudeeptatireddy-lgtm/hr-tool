@@ -1,7 +1,7 @@
 // Scoring in code (Components Map "Processing"): SPEC.md anchors applied to the extraction JSON only.
 // It never sees the raw CV except to check that each cited quote is really in it (hard rule 1).
 // No employer, college or personal field is read here: only work_kind, months, volume, users, adoption, flags.
-import { type Evidence, quoteInText } from "./extraction";
+import { type Evidence, quoteInText } from "./extraction.js";
 
 export type Role = "PM" | "Senior PM";
 export type Signal = "S1" | "S2" | "S3" | "S4";

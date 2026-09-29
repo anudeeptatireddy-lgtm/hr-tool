@@ -1,5 +1,5 @@
 // One place for model calls. Every call must return JSON: strip fences, parse, retry once, then flag.
-import { GEMINI_API_KEY, GEMINI_MODEL } from "./config";
+import { GEMINI_API_KEY, GEMINI_MODEL } from "./config.js";
 
 // v1: older Flash models 404 for new keys (same finding as the common-ground project).
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1/models";

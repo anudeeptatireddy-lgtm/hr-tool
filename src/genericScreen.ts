@@ -1,10 +1,10 @@
 // Screening for jobs with a generated rubric. Same guarantees as the Kargo roles:
 // identity removed before any AI call; call 1 extracts quoted evidence; call 2 scores from that evidence only
 // (never the CV, employer names removed); every quote is checked against the CV; median of 3 runs.
-import { callJson } from "./gemini";
-import { quoteInText } from "./extraction";
-import type { Rubric, RubricSignal } from "./rubric";
-import { band, BORDERLINE_AT, SHORTLIST_AT, type Band, type Gate } from "./scoring";
+import { callJson } from "./gemini.js";
+import { quoteInText } from "./extraction.js";
+import type { Rubric, RubricSignal } from "./rubric.js";
+import { band, BORDERLINE_AT, SHORTLIST_AT, type Band, type Gate } from "./scoring.js";
 
 export type GenericEvidence = {
   candidate: { location: string; relocation_stated: boolean | null };

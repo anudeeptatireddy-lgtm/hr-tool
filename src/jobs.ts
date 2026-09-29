@@ -1,5 +1,5 @@
 // The two open roles. The JDs only supply gates (SPEC.md "Pattern vs JD"); ranking comes from the rubric.
-import type { Role } from "./scoring";
+import type { Role } from "./scoring.js";
 
 export type Job = { role: Role; ref: string; title: string; location: string; reportsTo: string; openedOn: string; requirement: string; gates: string[]; jdFile: string };
 

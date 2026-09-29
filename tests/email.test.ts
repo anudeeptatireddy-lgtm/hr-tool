@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { draftEmail, draftFacts, merge, templateDraft } from "../src/emailDraft";
-import { recipientFor, sendEmail } from "../src/mailer";
-import { forRole, scoreSignals } from "../src/scoring";
-import { ev } from "./helpers";
+import { draftEmail, draftFacts, merge, templateDraft } from "../src/emailDraft.js";
+import { recipientFor, sendEmail } from "../src/mailer.js";
+import { forRole, scoreSignals } from "../src/scoring.js";
+import { ev } from "./helpers.js";
 
 const CV = "Handled DO releases for 200 shipments monthly at Oceanic Freight";
 const e = ev({ candidate: { location: "Pune", relocation_stated: null },
@@ -66,12 +66,12 @@ describe("sending (hard rules 3 and 4)", () => {
 
 describe("placeholders block sending", () => {
   it("finds bracket, mustache, brace and angle placeholders, and TODO", async () => {
-    const { findPlaceholders } = await import("../src/placeholders");
+    const { findPlaceholders } = await import("../src/placeholders.js");
     expect(findPlaceholders("Pick a time: [SCHEDULING LINK]")).toEqual(["[SCHEDULING LINK]"]);
     expect(findPlaceholders("Hi {{name}}", "Hi {first_name}", "See <LINK HERE>", "TODO add date")).toEqual(["{{name}}", "{first_name}", "<LINK HERE>", "TODO"]);
   });
   it("a finished email has none", async () => {
-    const { findPlaceholders } = await import("../src/placeholders");
+    const { findPlaceholders } = await import("../src/placeholders.js");
     expect(findPlaceholders("Kargo · Product Manager: let's talk", "Hi Asha,\n\nPick a slot here: https://cal.com/arjun/30min\n\nArjun")).toEqual([]);
   });
   it("a configured SCHEDULING_URL is filled in at draft time", () => {

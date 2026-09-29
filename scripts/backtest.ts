@@ -5,11 +5,11 @@
 import "dotenv/config";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { extractConsensus } from "../src/consensus";
-import type { Evidence } from "../src/extraction";
-import { extractText } from "../src/extractText";
-import { redactIdentity } from "../src/redact";
-import { DEFAULT_WEIGHTS, SHORTLIST_AT, scoreSignals, total } from "../src/scoring";
+import { extractConsensus } from "../src/consensus.js";
+import type { Evidence } from "../src/extraction.js";
+import { extractText } from "../src/extractText.js";
+import { redactIdentity } from "../src/redact.js";
+import { DEFAULT_WEIGHTS, SHORTLIST_AT, scoreSignals, total } from "../src/scoring.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const HIRES = join(ROOT, "data", "hires");

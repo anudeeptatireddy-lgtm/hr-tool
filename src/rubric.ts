@@ -1,6 +1,6 @@
 // Rubrics for jobs created in the app (kind 'generated'). The two Kargo roles keep the back-tested
 // past-hire rubric in scoring.ts; these are generated from the job's own text, then reviewed and approved.
-import { callJson } from "./gemini";
+import { callJson } from "./gemini.js";
 
 export type RubricSignal = {
   key: string;            // G1..G4

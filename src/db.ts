@@ -1,6 +1,6 @@
 // Neon Postgres over HTTP (the serverless driver), using the pooled URL for app traffic.
 import { neon } from "@neondatabase/serverless";
-import type { Role } from "./scoring";
+import type { Role } from "./scoring.js";
 
 let _sql: ReturnType<typeof neon> | null = null;
 function sql() {

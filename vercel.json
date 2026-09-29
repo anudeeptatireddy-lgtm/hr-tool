@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm test",
+  "outputDirectory": "public",
+  "functions": {
+    "api/*.ts": { "maxDuration": 60 },
+    "api/submit.ts": { "maxDuration": 300 }
+  }
+}

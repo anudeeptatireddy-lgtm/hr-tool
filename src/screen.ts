@@ -1,12 +1,12 @@
 // The whole Flow A for one CV: text -> redact identity -> AI extraction -> quote check -> score both roles -> card.
-import { buildCard, type Card } from "./card";
-import { extractConsensus, spreadOf } from "./consensus";
-import type { Evidence } from "./extraction";
-import { extractText } from "./extractText";
-import { PLACEHOLDER, redactIdentity } from "./redact";
-import { forRole, type Gate, type Role, type RoleResult, type Scored } from "./scoring";
-import { genericCard, genericConsensus, genericGates, genericOutcome, type GenericEvidence, type GenericScored, type JobGates } from "./genericScreen";
-import type { Rubric } from "./rubric";
+import { buildCard, type Card } from "./card.js";
+import { extractConsensus, spreadOf } from "./consensus.js";
+import type { Evidence } from "./extraction.js";
+import { extractText } from "./extractText.js";
+import { PLACEHOLDER, redactIdentity } from "./redact.js";
+import { forRole, type Gate, type Role, type RoleResult, type Scored } from "./scoring.js";
+import { genericCard, genericConsensus, genericGates, genericOutcome, type GenericEvidence, type GenericScored, type JobGates } from "./genericScreen.js";
+import type { Rubric } from "./rubric.js";
 
 /** A name the model reported that is really in the text we sent: a sign redaction missed it. */
 export function leakedName(ev: Evidence | null, sentText: string): string {

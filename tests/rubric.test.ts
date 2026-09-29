@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { genericGates, monthsFromRoles, normaliseGenericEvidence } from "../src/genericScreen";
-import { normaliseRubric } from "../src/rubric";
+import { genericGates, monthsFromRoles, normaliseGenericEvidence } from "../src/genericScreen.js";
+import { normaliseRubric } from "../src/rubric.js";
 
 const sig = (name: string, weight: number) => ({ name, weight, what: `looks for ${name}`, levels: { "0": "none", "1": "some", "2": "good", "3": "strong" }, probe: "?" });
 

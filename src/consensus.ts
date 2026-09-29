@@ -1,8 +1,8 @@
 // Extraction varies a little between runs, so a candidate's band shouldn't hang on one call.
 // Run K extractions in parallel, score each, and keep the run with the median total (its quotes and card
 // stay consistent because they all come from that one run).
-import { extractEvidence, type Evidence } from "./extraction";
-import { DEFAULT_WEIGHTS, scoreSignals, total, type Scored, type Weights } from "./scoring";
+import { extractEvidence, type Evidence } from "./extraction.js";
+import { DEFAULT_WEIGHTS, scoreSignals, total, type Scored, type Weights } from "./scoring.js";
 
 export const RUNS = 3;
 /** More than this many points between the highest and lowest run means the score isn't reliable: a person should look. */

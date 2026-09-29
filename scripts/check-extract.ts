@@ -1,7 +1,7 @@
 // Milestone 1 check: extract text from every file under data/ and print a status table. Prints no CV contents.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { extractText } from "../src/extractText";
+import { extractText } from "../src/extractText.js";
 
 const DATA = join(import.meta.dirname, "..", "data");
 const walk = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : [join(d, n)]));

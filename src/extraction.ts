@@ -1,6 +1,6 @@
 // AI call 1: redacted CV text -> evidence JSON (schema from docs/SPEC.md plus documented extras, DECISIONS.md #14).
-import { callJson } from "./gemini";
-import { EXTRACT_PROMPT } from "./prompts/extract";
+import { callJson } from "./gemini.js";
+import { EXTRACT_PROMPT } from "./prompts/extract.js";
 
 export type OpsRole = {
   employer: string; role_title: string; employer_type: string; work_kind: string;

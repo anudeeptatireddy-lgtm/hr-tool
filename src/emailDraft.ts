@@ -1,8 +1,8 @@
 // AI call 2 (Components Map): drafts the invite or decline email from the scored record, never the raw CV.
 // The model gets no name, email, employer or college: placeholders are merged in code afterwards.
-import { callJson } from "./gemini";
-import type { Evidence } from "./extraction";
-import type { RoleResult, Scored } from "./scoring";
+import { callJson } from "./gemini.js";
+import type { Evidence } from "./extraction.js";
+import type { RoleResult, Scored } from "./scoring.js";
 
 export type Kind = "invite" | "decline" | "more_info";
 export type Draft = { subject: string; body: string; draftedBy: "ai" | "template" };
