@@ -7,7 +7,8 @@
     "extract:hires": "tsx scripts/extract-hires.ts",
     "backtest": "tsx scripts/backtest.ts",
     "check:extract": "tsx scripts/check-extract.ts",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "db:migrate": "tsx scripts/migrate.ts",
+    "screen:applications": "tsx scripts/screen-applications.ts"
   },
   "dependencies": {
     "@neon/config": "^1.8.2",

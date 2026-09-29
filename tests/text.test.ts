@@ -81,3 +81,25 @@ describe("card", () => {
     expect(card.risk).toMatch(/relocation/);
   });
 });
+
+describe("redaction on varied CV layouts", () => {
+  it("finds the name next to the contact block even when a PDF puts it at the end", () => {
+    const cv = ["PROFESSIONAL SUMMARY", "Operations leader with 6 years", "CORE COMPETENCIES", "Carrier allocation", "EDUCATION", "B.Com", "Neha Rao", "neha.rao@mail.com | +91 90000 12345"].join("\n");
+    const r = redactIdentity(cv, "cv_upload.pdf");
+    expect(r.name).toBe("Neha Rao");
+    expect(r.text).not.toMatch(/Neha|Rao/);
+    expect(r.text).toContain("CORE COMPETENCIES");
+  });
+  it("prefers the file name's words over a heading, and doesn't redact the heading", () => {
+    const cv = ["Strategic & Marketing Lead", "PROFESSIONAL SUMMARY", "Led campaigns", "Tara Singh tara@x.com"].join("\n");
+    const r = redactIdentity(cv, "07_tara_singh.pdf");
+    expect(r.name).toBe("Tara Singh");
+    expect(r.text).toContain("Strategic & Marketing Lead");
+    expect(r.text).not.toMatch(/Tara|Singh/);
+  });
+  it("handles a name and email on the same line", () => {
+    const r = redactIdentity("Kiran Das kiran@x.co\n+91 90000 00000 · Pune\nSummary", "resume.pdf");
+    expect(r.name).toBe("Kiran Das");
+    expect(r.text).not.toMatch(/Kiran|Das/);
+  });
+});

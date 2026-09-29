@@ -31,7 +31,7 @@ await Promise.all(files.map(async (f) => {
     ({ text, evidence: ev } = JSON.parse(readFileSync(saved, "utf8")));
   } else {
     const doc = await extractText(f, readFileSync(join(HIRES, f)));
-    text = redactIdentity(doc.text).text;
+    text = redactIdentity(doc.text, f).text;
     const r = await extractConsensus(text);
     if (!r.result) { console.error(`${id}: extraction flagged: ${r.error}`); return; }
     ev = r.result.evidence;
