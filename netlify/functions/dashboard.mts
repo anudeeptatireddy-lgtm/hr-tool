@@ -3,6 +3,7 @@
 import type { Config } from "@netlify/functions";
 import { listJobs, listScreenings } from "../../src/db";
 import { patternSummary, type Summary } from "../../src/screen";
+import { spreadOf } from "../../src/consensus";
 import { SHORTLIST_AT, WEIGHTS } from "../../src/scoring";
 
 // What the back-tested rubric looks for, shown read-only on the Kargo roles.
@@ -40,7 +41,13 @@ export default async () => {
       signalScores: sum.signalScores,
       lowConfidence: !!sum.lowConfidence,
       lowConfidenceReasons: sum.lowConfidenceReasons ?? [],
-      outcome: sum.recommendation === "Shortlist" ? "passed" : sum.recommendation === "Borderline" ? "borderline" : "failed",
+      // Rows saved before this flag existed are checked from their run totals.
+      needsHumanReview: sum.needsHumanReview ?? spreadOf(r.runTotals ?? []).needsHumanReview,
+      runTotals: sum.runTotals ?? r.runTotals ?? [],
+      runRange: sum.runRange ?? spreadOf(r.runTotals ?? []).range,
+      // Inconsistent scoring gets its own group: a person decides, and bulk actions leave it out.
+      outcome: (sum.needsHumanReview ?? spreadOf(r.runTotals ?? []).needsHumanReview) ? "review"
+        : sum.recommendation === "Shortlist" ? "passed" : sum.recommendation === "Borderline" ? "borderline" : "failed",
     };
   });
   const done = candidates.filter((c) => c.match !== null);

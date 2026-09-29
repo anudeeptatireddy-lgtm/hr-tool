@@ -5,6 +5,13 @@ import { extractEvidence, type Evidence } from "./extraction";
 import { DEFAULT_WEIGHTS, scoreSignals, total, type Scored, type Weights } from "./scoring";
 
 export const RUNS = 3;
+/** More than this many points between the highest and lowest run means the score isn't reliable: a person should look. */
+export const REVIEW_SPREAD = 10;
+export function spreadOf(totals: number[]): { spread: number; needsHumanReview: boolean; range: [number, number] } {
+  if (!totals.length) return { spread: 0, needsHumanReview: false, range: [0, 0] };
+  const lo = Math.min(...totals), hi = Math.max(...totals), spread = Math.round((hi - lo) * 10) / 10;
+  return { spread, needsHumanReview: spread > REVIEW_SPREAD, range: [lo, hi] };
+}
 
 export type Consensus = { evidence: Evidence; scored: Scored; totals: number[]; picked: number; errors: string[] };
 

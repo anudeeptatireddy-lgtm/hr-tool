@@ -30,6 +30,7 @@ const matchClass = (m) => (m === null ? "" : m >= 65 ? "m-pass" : m >= 45 ? "m-m
 const outcomePill = (c) => {
   if (c.outcome === "screening") return '<span class="pill screening"><span class="spinner"></span>Screening</span>';
   if (c.outcome === "error") return '<span class="pill error">Couldn\'t read</span>';
+  if (c.outcome === "review") return `<span class="pill ask" title="Scoring was inconsistent: runs ${esc((c.runTotals || []).join(" / "))}">Needs review</span>`;
   const label = { passed: "Passed", borderline: "Borderline", failed: c.gateFailed ? "Failed gate" : "Failed" }[c.outcome];
   return `<span class="pill ${c.outcome}" title="${esc(c.failedGate)}">${label}</span>`;
 };
@@ -41,6 +42,7 @@ const statusCell = (c) => {
 const actionCell = (c) => {
   if (c.match === null) return "";
   if (c.lastSent) return statusCell(c);
+  if (c.outcome === "review") return `<button class="btn amber sm" onclick="event.stopPropagation(); location.hash='#/c/${c.id}'">Review</button>`;
   const btn = c.outcome === "passed"
     ? `<button class="btn sm" onclick="event.stopPropagation(); emailOne('${c.id}', 'advance')">Invite</button>`
     : `<button class="btn warn sm" onclick="event.stopPropagation(); emailOne('${c.id}', 'decline')">Send decline</button>`;
@@ -56,7 +58,7 @@ function candidateTable(list, { showRole = true, compact = false, empty = "No ca
     <tbody>${list.map((c) => `<tr class="click" onclick="location.hash='#/c/${c.id}'">
       <td>${whoCell(c)}</td>
       ${showRole ? `<td class="nowrap">${esc(c.role || "—")}</td>` : ""}
-      <td class="match ${matchClass(c.match)}">${c.match === null ? "—" : `${Math.round(c.match)}%`}${c.lowConfidence ? `<div><span class="pill ask" title="${esc((c.lowConfidenceReasons || []).join("; "))}">Low confidence</span></div>` : ""}</td>
+      <td class="match ${c.needsHumanReview ? "m-mid" : matchClass(c.match)}">${c.match === null ? "—" : c.needsHumanReview ? `<span title="Runs: ${esc((c.runTotals || []).join(" / "))}">${Math.round(c.runRange[0])}–${Math.round(c.runRange[1])}%</span>` : `${Math.round(c.match)}%`}${c.lowConfidence ? `<div><span class="pill ask" title="${esc((c.lowConfidenceReasons || []).join("; "))}">Low confidence</span></div>` : ""}</td>
       <td class="chips">${(c.chips || []).slice(0, compact ? 2 : 4).map((x) => `<span class="chip">${esc(x)}</span>`).join("") || '<span class="muted small">—</span>'}</td>
       ${compact ? "" : `<td class="small nowrap" title="${esc(fmtTime(c.receivedAt))}">${fmtShort(c.receivedAt)}</td>`}
       <td>${outcomePill(c)}</td>
@@ -201,11 +203,12 @@ function candidates(tab = "passed") {
     passed: all.filter((c) => c.outcome === "passed").sort(byMatch),
     borderline: all.filter((c) => c.outcome === "borderline").sort(byMatch),
     failed: all.filter((c) => c.outcome === "failed").sort(byMatch),
+    review: all.filter((c) => c.outcome === "review").sort(byMatch),
     other: all.filter((c) => c.outcome === "screening" || c.outcome === "error"),
   };
-  const names = { passed: "Passed (65%+)", borderline: "Borderline (45–64%)", failed: "Failed", other: "Screening / unreadable" };
+  const names = { passed: "Passed (65%+)", borderline: "Borderline (45–64%)", failed: "Failed", review: "Needs review", other: "Screening / unreadable" };
   const pending = passedNotEmailed().length;
-  return `<div class="section-head"><div><h1>Candidates</h1><div class="muted small">Passed = 65%+ and all gates met. Failed = under 45% or a gate not met. Nothing is emailed until you send it.</div></div>
+  return `<div class="section-head"><div><h1>Candidates</h1><div class="muted small">Passed = 65%+ and all gates met. Failed = under 45% or a gate not met. Needs review = the 3 scoring runs disagreed by more than 10 points. Nothing is emailed until you send it.</div></div>
     <div class="row-actions"><button class="btn ghost" onclick="openUpload()">Bulk upload CVs</button><button class="btn" onclick="emailAllPassed()" ${pending ? "" : "disabled"}>Email all passed${pending ? ` (${pending})` : ""}</button></div></div>
   <div class="tabs">${Object.keys(groups).map((k) => `<a href="#/candidates/${k}" class="${k === tab ? "on" : ""}">${names[k]}<span class="n">${groups[k].length}</span></a>`).join("")}</div>
   ${candidateTable(groups[tab] || [], { empty: tab === "passed" ? "No one has passed yet." : "Nobody in this list." })}`;
@@ -224,7 +227,7 @@ async function detail(id) {
     <section>
       <div class="card pad">
         <div class="headline"><div class="ini" style="width:38px;height:38px">${esc(initials(r.candidate.name))}</div>${esc(r.candidate.name || "Name not found")}
-          <span class="match ${matchClass(rr.total)}">${Math.round(rr.total)}% match</span> ${outcomePill(row)}</div>
+          <span class="match ${row.needsHumanReview ? "m-mid" : matchClass(rr.total)}">${row.needsHumanReview ? `${Math.round(row.runRange[0])}–${Math.round(row.runRange[1])}% match` : `${Math.round(rr.total)}% match`}</span> ${outcomePill(row)}</div>
         <div class="muted small" style="margin-top:4px">${esc(ROLE_TITLE[r.roleUsed])} (${esc(r.roleNote)}) · received ${row.receivedAt ? fmtDate(row.receivedAt) : ""} · ${esc(r.file)}${r.scored.lowConfidence ? " · <b>Low confidence:</b> S1 rests on thin evidence" : ""}</div>
         <h3>Why ranked here</h3>
         <ul class="plain">${card.why.map((w) => `<li>${esc(w.line)}<blockquote>“${esc(w.quote)}”</blockquote></li>`).join("") || "<li class='muted'>No signal scored above 0.</li>"}</ul>
@@ -246,10 +249,11 @@ async function detail(id) {
 }
 
 function decisionPanel(id, row) {
+  const review = row.needsHumanReview ? `<div class="note"><b>Needs review: scoring was inconsistent.</b> The 3 runs gave ${esc((row.runTotals || []).join(" / "))}%, a spread of ${Math.round(row.runRange[1] - row.runRange[0])} points. The shown score is the middle run; check the evidence before deciding.</div>` : "";
   const low = row.lowConfidence ? `<div class="note"><b>Low confidence.</b> ${esc((row.lowConfidenceReasons || []).join(". "))}. Consider asking the candidate for more detail before deciding.</div>` : "";
   return `<section>
       <div class="label">Your decision</div>
-      ${low}
+      ${review}${low}
       <div class="card pad">
         <div class="muted small" style="margin-bottom:10px">Currently: ${statusCell(row)}</div>
         <div class="row-actions">
@@ -270,7 +274,7 @@ function genericDetail(id, r) {
     <section>
       <div class="card pad">
         <div class="headline"><div class="ini" style="width:38px;height:38px">${esc(initials(r.candidate.name))}</div>${esc(r.candidate.name || "Name not found")}
-          <span class="match ${matchClass(s.match)}">${Math.round(s.match)}% match</span> ${outcomePill(row)}</div>
+          <span class="match ${row.needsHumanReview ? "m-mid" : matchClass(s.match)}">${row.needsHumanReview ? `${Math.round(row.runRange[0])}–${Math.round(row.runRange[1])}% match` : `${Math.round(s.match)}% match`}</span> ${outcomePill(row)}</div>
         <div class="muted small" style="margin-top:4px">${esc(s.jobTitle)} · rubric v${s.rubricVersion} · received ${row.receivedAt ? fmtDate(row.receivedAt) : ""} · ${esc(r.file)}</div>
         <h3>Why ranked here</h3>
         <ul class="plain">${card.why.map((w) => `<li>${esc(w.line)}<blockquote>“${esc(w.quote)}”</blockquote></li>`).join("") || "<li class='muted'>No signal scored above 0.</li>"}</ul>
