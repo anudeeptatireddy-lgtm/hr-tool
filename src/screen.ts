@@ -35,7 +35,11 @@ export type Screening = {
   card: Card | null;
   redactedText: string;
   runTotals: number[];
+  lowConfidence: boolean;
+  lowConfidenceReasons: string[];
 };
+
+const shortReason = (n: number) => `Short CV (${n} characters): scored on very little text`;
 
 export function detectRole(ev: Evidence, selected: Role | null): { role: Role; note: string } {
   if (selected) return { role: selected, note: "selected by founder" };
@@ -47,7 +51,7 @@ export function detectRole(ev: Evidence, selected: Role | null): { role: Role; n
 }
 
 export async function screen(file: string, buf: Buffer, selected: Role | null, timeoutMs?: number): Promise<Screening> {
-  const base = { file, candidate: { name: "", email: "" }, roleSelected: selected, roleUsed: selected ?? ("PM" as Role), roleNote: "", evidence: null, scored: null, roles: null, card: null, redactedText: "", runTotals: [] as number[] };
+  const base = { file, candidate: { name: "", email: "" }, roleSelected: selected, roleUsed: selected ?? ("PM" as Role), roleNote: "", evidence: null, scored: null, roles: null, card: null, redactedText: "", runTotals: [] as number[], lowConfidence: false, lowConfidenceReasons: [] as string[] };
   const doc = await extractText(file, buf);
   if (!doc.ok) return { ...base, ok: false, error: `Couldn't read this file: ${doc.error}` };
   // Personal details are kept here, on our side, and never sent to the AI.
@@ -64,7 +68,8 @@ export async function screen(file: string, buf: Buffer, selected: Role | null, t
   const { evidence, scored } = result;
   const roles = { PM: forRole(scored, evidence, "PM", red.text), "Senior PM": forRole(scored, evidence, "Senior PM", red.text) };
   const { role, note } = detectRole(evidence, selected);
-  return { ok: true, error: "", file, candidate: { name: red.name, email: red.email }, roleSelected: selected, roleUsed: role, roleNote: note, evidence, scored, roles, card: buildCard(scored, roles[role]), redactedText: red.text, runTotals: result.totals };
+  const reasons = [...(doc.short ? [shortReason(doc.text.length)] : []), ...(scored.lowConfidence ? ["Hands-on ops score rests on one line with no volume or duration"] : [])];
+  return { ok: true, error: "", file, candidate: { name: red.name, email: red.email }, roleSelected: selected, roleUsed: role, roleNote: note, evidence, scored, roles, card: buildCard(scored, roles[role]), redactedText: red.text, runTotals: result.totals, lowConfidence: reasons.length > 0, lowConfidenceReasons: reasons };
 }
 
 // ---------- one summary shape for both kinds of job (dashboard, emails, UI) ----------
@@ -74,6 +79,7 @@ export type Summary = {
   kind: "pattern" | "generated"; jobRef: string; jobTitle: string; rubricVersion: number;
   match: number; band: string; recommendation: string; gateFailed: boolean; failedGate: string; askRelocation: boolean;
   gates: Gate[]; chips: string[]; signalScores: { key: string; name: string; weight: number; score: number }[]; strengths: string[];
+  lowConfidence: boolean; lowConfidenceReasons: string[];
 };
 
 const PATTERN_NAMES = { S1: "Ops", S2: "Fix adopted", S3: "Owner", S4: "Kills" } as const;
@@ -88,6 +94,9 @@ export function patternSummary(r: Screening, job: { ref: string; title: string; 
     gates: rr.gates, chips: keys.filter((k) => sg[k].score >= 2).map((k) => `${PATTERN_NAMES[k]} ${sg[k].score}/3`),
     signalScores: keys.map((k) => ({ key: k, name: PATTERN_NAMES[k], weight: rr.weights[k], score: sg[k].score })),
     strengths: keys.filter((k) => sg[k].score >= 2).map((k) => sg[k].reason),
+    // Older rows predate these fields: fall back to the thin-evidence flag.
+    lowConfidence: r.lowConfidence ?? !!r.scored!.lowConfidence,
+    lowConfidenceReasons: r.lowConfidenceReasons ?? (r.scored!.lowConfidence ? ["Hands-on ops score rests on one line with no volume or duration"] : []),
   };
 }
 
@@ -115,6 +124,7 @@ export async function screenGeneric(file: string, buf: Buffer, job: JobRow, time
     chips: result.scored.signals.filter((s) => s.score >= 2).map((s) => `${s.name.split(/\s+/).slice(0, 3).join(" ")} ${s.score}/3`),
     signalScores: result.scored.signals.map((s) => ({ key: s.key, name: s.name, weight: s.weight, score: s.score })),
     strengths: result.scored.signals.filter((s) => s.score >= 2).map((s) => s.reason),
+    lowConfidence: doc.short, lowConfidenceReasons: doc.short ? [shortReason(doc.text.length)] : [],
   };
   return { ...base, ok: true, candidate: { name: red.name, email: red.email }, evidence: result.ev, scored: result.scored, gates,
     card: genericCard(result.scored, job.rubric, gates), summary, redactedText: red.text, runTotals: result.totals };

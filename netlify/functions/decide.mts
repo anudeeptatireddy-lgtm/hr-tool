@@ -10,7 +10,7 @@ import { SHORTLIST_AT, type Role } from "../../src/scoring";
 export default async (req: Request) => {
   if (req.method !== "POST") return Response.json({ error: "POST only" }, { status: 405 });
   const { id, decision, role, confirmBelowThreshold } = (await req.json().catch(() => ({}))) as { id?: string; decision?: Decision; role?: Role; confirmBelowThreshold?: boolean };
-  if (!id || !/^[0-9a-f-]{36}$/.test(id) || !["advance", "decline", "hold"].includes(decision as string)) return Response.json({ error: "Bad request" }, { status: 400 });
+  if (!id || !/^[0-9a-f-]{36}$/.test(id) || !["advance", "decline", "hold", "more_info"].includes(decision as string)) return Response.json({ error: "Bad request" }, { status: 400 });
   const r = await getScreening(id);
   if (!r) return Response.json({ error: "Screening not found" }, { status: 404 });
   const isPattern = !!r.roles;
@@ -29,7 +29,7 @@ export default async (req: Request) => {
   const logged = await logDecision(id, decision!, isPattern ? useRole : sum.jobTitle, score, isPattern ? rr.recommendation : sum.recommendation, rationale);
   if (decision === "hold") return Response.json({ decisionId: logged.id, loggedAt: logged.created_at });
 
-  const kind: Kind = decision === "advance" ? "invite" : "decline";
+  const kind: Kind = decision === "advance" ? "invite" : decision === "more_info" ? "more_info" : "decline";
   const d = isPattern ? await draftEmail(kind, r.evidence, r.scored, rr)
     : await draftEmailFromFacts(kind, { role: sum.jobTitle, strengths: sum.strengths, needs_relocation_question: sum.askRelocation });
   const subject = merge(d.subject, r.candidate.name), body = merge(d.body, r.candidate.name);

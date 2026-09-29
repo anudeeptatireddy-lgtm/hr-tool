@@ -1,8 +1,10 @@
 // Text extraction by file format. Never throws: a bad file returns ok=false with an error.
-export type Extracted = { name: string; format: string; text: string; ok: boolean; error: string };
+export type Extracted = { name: string; format: string; text: string; ok: boolean; error: string; short: boolean };
 
-// Below this many characters a CV is probably a scanned image or an empty file.
-export const MIN_CHARS = 200;
+// Below this there's nothing to score: an empty file, or a scanned image with no text layer. Rejected.
+export const MIN_CHARS = 20;
+// Below this a CV is short but legible: it's still scored, and the result is marked low confidence.
+export const SHORT_CHARS = 400;
 
 function normalise(text: string): string {
   const lines = text.replace(/\r\n?/g, "\n").replace(/ /g, " ").split("\n").map((l) => l.split(/\s+/).filter(Boolean).join(" "));
@@ -46,9 +48,9 @@ export async function extractText(name: string, buf: Buffer): Promise<Extracted>
   const format = (name.split(".").pop() || "").toLowerCase();
   try {
     const text = normalise(await raw(buf, format));
-    if (text.length < MIN_CHARS) return { name, format, text, ok: false, error: `too little text (${text.length} chars); scanned or empty?` };
-    return { name, format, text, ok: true, error: "" };
+    if (text.replace(/\s/g, "").length < MIN_CHARS) return { name, format, text, ok: false, short: true, error: `no readable text (${text.length} chars). Is it a scanned image or an empty file?` };
+    return { name, format, text, ok: true, short: text.length < SHORT_CHARS, error: "" };
   } catch (e) {
-    return { name, format, text: "", ok: false, error: e instanceof Error ? e.message : String(e) };
+    return { name, format, text: "", ok: false, short: false, error: e instanceof Error ? e.message : String(e) };
   }
 }

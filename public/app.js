@@ -34,8 +34,8 @@ const outcomePill = (c) => {
   return `<span class="pill ${c.outcome}" title="${esc(c.failedGate)}">${label}</span>`;
 };
 const statusCell = (c) => {
-  if (c.lastSent) return `<span class="pill sent">${c.lastSent.kind === "invite" ? "Invite sent" : "Decline sent"}</span><div class="muted small">${fmtTime(c.lastSent.at)}</div>`;
-  if (c.lastDecision) return `<span class="pill ${c.lastDecision.decision === "hold" ? "hold" : "screening"}">${{ advance: "Advanced", decline: "Declined", hold: "On hold" }[c.lastDecision.decision]}</span><div class="muted small">no email sent</div>`;
+  if (c.lastSent) return `<span class="pill sent">${{ invite: "Invite sent", decline: "Decline sent", more_info: "Asked for detail" }[c.lastSent.kind]}</span><div class="muted small">${fmtTime(c.lastSent.at)}</div>`;
+  if (c.lastDecision) return `<span class="pill ${c.lastDecision.decision === "hold" ? "hold" : "screening"}">${{ advance: "Advanced", decline: "Declined", hold: "On hold", more_info: "Asked for more detail" }[c.lastDecision.decision]}</span><div class="muted small">no email sent</div>`;
   return '<span class="muted small">New</span>';
 };
 const actionCell = (c) => {
@@ -44,7 +44,7 @@ const actionCell = (c) => {
   const btn = c.outcome === "passed"
     ? `<button class="btn sm" onclick="event.stopPropagation(); emailOne('${c.id}', 'advance')">Invite</button>`
     : `<button class="btn warn sm" onclick="event.stopPropagation(); emailOne('${c.id}', 'decline')">Send decline</button>`;
-  const note = c.lastDecision ? `<div class="muted small">${{ advance: "Advanced", decline: "Declined", hold: "On hold" }[c.lastDecision.decision]}, not emailed</div>` : "";
+  const note = c.lastDecision ? `<div class="muted small">${{ advance: "Advanced", decline: "Declined", hold: "On hold", more_info: "Asked for more detail" }[c.lastDecision.decision]}, not emailed</div>` : "";
   return btn + note;
 };
 const whoCell = (c) => `<div class="who"><div class="ini">${esc(initials(c.name))}</div><div class="nowrap">${esc(c.name || c.file)}<div class="muted small" style="font-weight:400">${esc(c.file)}</div></div></div>`;
@@ -56,7 +56,7 @@ function candidateTable(list, { showRole = true, compact = false, empty = "No ca
     <tbody>${list.map((c) => `<tr class="click" onclick="location.hash='#/c/${c.id}'">
       <td>${whoCell(c)}</td>
       ${showRole ? `<td class="nowrap">${esc(c.role || "—")}</td>` : ""}
-      <td class="match ${matchClass(c.match)}">${c.match === null ? "—" : `${Math.round(c.match)}%`}</td>
+      <td class="match ${matchClass(c.match)}">${c.match === null ? "—" : `${Math.round(c.match)}%`}${c.lowConfidence ? `<div><span class="pill ask" title="${esc((c.lowConfidenceReasons || []).join("; "))}">Low confidence</span></div>` : ""}</td>
       <td class="chips">${(c.chips || []).slice(0, compact ? 2 : 4).map((x) => `<span class="chip">${esc(x)}</span>`).join("") || '<span class="muted small">—</span>'}</td>
       ${compact ? "" : `<td class="small nowrap" title="${esc(fmtTime(c.receivedAt))}">${fmtShort(c.receivedAt)}</td>`}
       <td>${outcomePill(c)}</td>
@@ -241,24 +241,15 @@ async function detail(id) {
         <tbody>${["PM", "Senior PM"].map((k) => { const x = r.roles[k]; return `<tr><td>${ROLE_TITLE[k]}${k === r.roleUsed ? " ✓" : ""}</td><td>${x.weights.S1}/${x.weights.S2}/${x.weights.S3}/${x.weights.S4}</td><td class="match ${matchClass(x.total)}">${Math.round(x.total)}%</td><td><span class="pill ${x.recommendation === "Shortlist" ? "passed" : x.recommendation === "Borderline" ? "borderline" : "failed"}">${x.recommendation}</span></td><td>${gateRows(x)}</td></tr>`; }).join("")}</tbody></table></div></div>
       <div class="card pad" style="margin-top:16px"><details><summary class="muted">Extracted evidence (what scoring saw)</summary><pre>${esc(JSON.stringify(r.evidence, null, 2))}</pre></details></div>
     </section>
-    <section>
-      <div class="label">Your decision</div>
-      <div class="card pad">
-        <div class="muted small" style="margin-bottom:10px">Currently: ${statusCell(row)}</div>
-        <div class="row-actions">
-          <button class="btn" onclick="emailOne('${id}', 'advance')">Advance + draft invite</button>
-          <button class="btn amber" onclick="holdOne('${id}')">Hold</button>
-          <button class="btn warn" onclick="emailOne('${id}', 'decline')">Decline + draft email</button>
-        </div>
-        <p class="muted small">Advance and Decline draft an email for you to review. It's only sent when you click Send.</p>
-      </div>
-    </section>
+    ${decisionPanel(id, row)}
   </div>`;
 }
 
 function decisionPanel(id, row) {
+  const low = row.lowConfidence ? `<div class="note"><b>Low confidence.</b> ${esc((row.lowConfidenceReasons || []).join(". "))}. Consider asking the candidate for more detail before deciding.</div>` : "";
   return `<section>
       <div class="label">Your decision</div>
+      ${low}
       <div class="card pad">
         <div class="muted small" style="margin-bottom:10px">Currently: ${statusCell(row)}</div>
         <div class="row-actions">
@@ -266,7 +257,8 @@ function decisionPanel(id, row) {
           <button class="btn amber" onclick="holdOne('${id}')">Hold</button>
           <button class="btn warn" onclick="emailOne('${id}', 'decline')">Decline + draft email</button>
         </div>
-        <p class="muted small">Advance and Decline draft an email for you to review. It's only sent when you click Send.</p>
+        <div class="row-actions" style="margin-top:8px"><button class="btn ghost" onclick="emailOne('${id}', 'more_info')">${row.lowConfidence ? "Ask for more detail (recommended)" : "Ask for more detail"}</button></div>
+        <p class="muted small">Each of these drafts an email for you to review. It's only sent when you click Send.</p>
       </div>
     </section>`;
 }
@@ -390,7 +382,7 @@ const findPlaceholders = (...t) => [...new Set(t.flatMap((x) => x.match(PLACEHOL
 const validUrl = (u) => /^https?:\/\/[^\s.]+\.[^\s]{2,}$/.test(u.trim());
 
 const draftBlock = (e, name, i) => `<div class="draft-item" data-i="${i}" data-blocked="${e.sendBlocked ? 1 : 0}">
-  <div class="section-head" style="margin:0"><div><b>${esc(name)}</b> <span class="muted small">${e.kind === "invite" ? "Invite" : "Decline"} · ${e.draftedBy === "ai" ? "AI draft" : "standard template"}</span></div>
+  <div class="section-head" style="margin:0"><div><b>${esc(name)}</b> <span class="muted small">${{ invite: "Invite", decline: "Decline", more_info: "Request for more detail" }[e.kind]} · ${e.draftedBy === "ai" ? "AI draft" : "standard template"}</span></div>
     <label class="small"><input type="checkbox" class="inc" checked> send</label></div>
   ${e.body.includes(SCHEDULING_LINK) ? `<label class="f">Scheduling link <span style="color:var(--red)">*</span></label><input class="link" placeholder="https://calendly.com/… (required: fills in [SCHEDULING LINK])" data-prev="">` : ""}
   <label class="f">Subject</label><input class="subj" value="${esc(e.subject)}">
@@ -427,7 +419,7 @@ const recipientLine = (e) => e.sendBlocked ? `<span style="color:var(--red)">${e
 
 async function emailOne(id, decision, confirmBelowThreshold = false) {
   const c = data.candidates.find((x) => x.id === id) || {};
-  const title = decision === "advance" ? "Invite to interview" : "Send a decline";
+  const title = { advance: "Invite to interview", decline: "Send a decline", more_info: "Ask for more detail" }[decision];
   // Below the pass threshold, ask before anything is logged or drafted. The server enforces this too.
   if (decision === "advance" && !confirmBelowThreshold && typeof c.match === "number" && c.match < data.threshold) return confirmLowAdvance(id, c.match, data.threshold);
   modal(title, `<p><span class="spinner"></span>Logging your decision and drafting the email…</p>`);

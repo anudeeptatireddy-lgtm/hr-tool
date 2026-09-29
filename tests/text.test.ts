@@ -103,3 +103,23 @@ describe("redaction on varied CV layouts", () => {
     expect(r.text).not.toMatch(/Kiran|Das/);
   });
 });
+
+describe("short CVs", () => {
+  it("a short but legible CV is accepted and marked short", async () => {
+    const cv = "Neha Rao\nPM, 3 yrs at a SaaS startup. Led onboarding revamp; churn -20%. Mumbai.";
+    const r = await extractText("cv.txt", Buffer.from(cv));
+    expect(cv.length).toBeLessThan(100);
+    expect(r.ok).toBe(true);
+    expect(r.short).toBe(true);
+  });
+  it("a long CV isn't marked short", async () => {
+    const r = await extractText("cv.txt", Buffer.from("Experience\n" + "Managed carrier allocation for 800 shipments a month. ".repeat(10)));
+    expect(r.ok).toBe(true);
+    expect(r.short).toBe(false);
+  });
+  it("a file with no real text is still rejected", async () => {
+    const r = await extractText("cv.txt", Buffer.from("  \n . \n"));
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/no readable text/);
+  });
+});

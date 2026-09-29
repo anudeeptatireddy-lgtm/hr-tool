@@ -39,7 +39,7 @@ export async function getJob(id: string): Promise<Job | null> {
 
 // ---------- decisions and emails ----------
 
-export type Decision = "advance" | "decline" | "hold";
+export type Decision = "advance" | "decline" | "hold" | "more_info";
 
 export async function getScreening(id: string): Promise<any | null> {
   const rows = (await sql()`select result from screenings where id = ${id} and status = 'done'`) as { result: any }[];
@@ -52,7 +52,7 @@ export async function logDecision(screeningId: string, decision: Decision, role:
   return rows[0];
 }
 
-export async function createDraft(screeningId: string, decisionId: string, kind: "invite" | "decline", candidateTo: string, subject: string, body: string, draftedBy: string): Promise<string> {
+export async function createDraft(screeningId: string, decisionId: string, kind: "invite" | "decline" | "more_info", candidateTo: string, subject: string, body: string, draftedBy: string): Promise<string> {
   const rows = (await sql()`insert into emails (screening_id, decision_id, kind, candidate_to, subject, body, drafted_by)
     values (${screeningId}, ${decisionId}, ${kind}, ${candidateTo || null}, ${subject}, ${body}, ${draftedBy}) returning id`) as { id: string }[];
   return rows[0].id;

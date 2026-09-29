@@ -38,6 +38,8 @@ export default async () => {
       askRelocation: sum.askRelocation,
       chips: sum.chips,
       signalScores: sum.signalScores,
+      lowConfidence: !!sum.lowConfidence,
+      lowConfidenceReasons: sum.lowConfidenceReasons ?? [],
       outcome: sum.recommendation === "Shortlist" ? "passed" : sum.recommendation === "Borderline" ? "borderline" : "failed",
     };
   });

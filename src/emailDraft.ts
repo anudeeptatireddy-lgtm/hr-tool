@@ -4,7 +4,7 @@ import { callJson } from "./gemini";
 import type { Evidence } from "./extraction";
 import type { RoleResult, Scored } from "./scoring";
 
-export type Kind = "invite" | "decline";
+export type Kind = "invite" | "decline" | "more_info";
 export type Draft = { subject: string; body: string; draftedBy: "ai" | "template" };
 
 export const SCHEDULING_LINK = "[SCHEDULING LINK]";
@@ -31,11 +31,18 @@ Rules:
 - Never promise an offer, salary or a hiring decision.
 - Keep it under 150 words. No emoji, no exclamation marks in the subject.
 - invite: thank them, say you'd like to talk about the role, mention one or two specific things from their background (from "strengths", in your own words), and ask them to pick a time at ${SCHEDULING_LINK}. The first conversation is 30 minutes with Arjun. If needs_relocation_question is true, ask plainly whether they are based in Mumbai or open to relocating, since the role is in-office in Mumbai.
+- more_info: thank them for applying, say their CV was brief and you'd like to understand their experience better, and ask them to reply with more detail: the roles they've held with dates, what they personally did in each, and a result or two they're proud of. Don't say it's a rejection or an advance; no scheduling link.
 - decline: thank them sincerely for applying, say you won't be moving forward for this role right now, be specific and kind about one strength if there is one, and wish them well. No feedback about weaknesses. Don't say "unfortunately" more than once.
 
 Reply with only JSON: {"subject": "...", "body": "..."}`;
 
 export function templateDraft(kind: Kind, f: Facts): Omit<Draft, "draftedBy"> {
+  if (kind === "more_info") {
+    return {
+      subject: `Your application for ${f.role} at Kargo: a bit more detail?`,
+      body: `Hi {first_name},\n\nThank you for applying for the ${f.role} role at Kargo. Your CV was quite brief, and I'd like to understand your experience properly before deciding on next steps.\n\nCould you reply with a little more detail: the roles you've held (with dates), what you personally did in each, and one or two results you're proud of?\n\nThanks,\nArjun\nFounder, Kargo`,
+    };
+  }
   if (kind === "invite") {
     return {
       subject: `Kargo · ${f.role}: let's talk`,
