@@ -92,3 +92,8 @@ export async function auditLog(): Promise<{ decisions: any[]; emails: any[] }> {
     from emails e join screenings s on s.id = e.screening_id order by e.created_at desc limit 1000`) as any[];
   return { decisions, emails };
 }
+
+/** Re-screening: replace a finished screening's result in place (keeps its id, decisions and emails). */
+export async function replaceResult(id: string, status: "done" | "error", result: unknown, error: string): Promise<void> {
+  await sql()`update screenings set status = ${status}, result = ${JSON.stringify(result)}::jsonb, error = ${error || null}, finished_at = now() where id = ${id}`;
+}

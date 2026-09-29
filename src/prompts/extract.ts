@@ -42,7 +42,7 @@ Also record \`adoption\` as stated: how many people or teams, how fast, "now sta
 
 **kills_postmortems**: every time something they worked on was stopped, reversed, lost or went wrong, including incidents and errors they handled even if it ended well. List each separately. \`what\` happened; \`own_call\` is true only if they stopped, killed, rolled back or reversed something they themselves had built, launched, chosen or decided earlier (a feature they shipped, an approach they started, a call they made), because data showed it wasn't working. Replacing a tool or vendor someone else chose, or fixing a bug or incident, is not an own call; \`learning_adopted\` is true if the lesson became practice for others (a written post-mortem shared, a new standard, a process others now follow).
 
-**integration_platform_ownership**: true if they owned (not just contributed to) an integration layer, API or data platform, carrier or partner integrations, or a platform product area. **integration_quote** proves it (empty if false).
+**integration_platform_ownership**: true if they were responsible for an integration or platform area: they led, designed, owned, built as the PM, or ran an integration layer, an API or data platform, carrier, port, customs (e.g. ICEGATE) or partner integrations, ERP connections, or a platform product area. "Led the integration with X" or "Designed the X integration" counts. Being one contributor on someone else's integration, or only using an API, does not. **integration_quote** proves it (empty if false).
 
 **gaps_or_unclear**: short notes on anything missing or ambiguous (missing dates, unclear location, overlapping roles, vague claims with no numbers).
 
