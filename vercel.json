@@ -3,7 +3,6 @@
   "buildCommand": "npm test",
   "outputDirectory": "public",
   "functions": {
-    "api/*.ts": { "maxDuration": 60 },
-    "api/submit.ts": { "maxDuration": 300 }
+    "api/**/*.ts": { "maxDuration": 300 }
   }
 }
