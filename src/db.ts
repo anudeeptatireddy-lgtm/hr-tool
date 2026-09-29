@@ -79,7 +79,7 @@ export async function markEmail(id: string, ok: boolean, sentTo: string, resendI
 
 export async function listScreenings(): Promise<any[]> {
   return (await sql()`
-    select s.id, s.file_name, s.role as role_selected, s.status, s.error, s.created_at, s.finished_at, s.result,
+    select s.id, s.file_name, s.role as role_selected, s.job_ref, s.status, s.error, s.created_at, s.finished_at, s.result,
       (select json_build_object('decision', d.decision, 'at', d.created_at) from decisions d where d.screening_id = s.id order by d.created_at desc limit 1) as last_decision,
       (select json_build_object('kind', e.kind, 'status', e.status, 'at', coalesce(e.sent_at, e.created_at)) from emails e where e.screening_id = s.id and e.status = 'sent' order by e.sent_at desc limit 1) as last_sent
     from screenings s order by s.created_at desc limit 500`) as any[];
@@ -96,4 +96,42 @@ export async function auditLog(): Promise<{ decisions: any[]; emails: any[] }> {
 /** Re-screening: replace a finished screening's result in place (keeps its id, decisions and emails). */
 export async function replaceResult(id: string, status: "done" | "error", result: unknown, error: string): Promise<void> {
   await sql()`update screenings set status = ${status}, result = ${JSON.stringify(result)}::jsonb, error = ${error || null}, finished_at = now() where id = ${id}`;
+}
+
+// ---------- jobs and rubrics ----------
+
+export type JobRecord = {
+  ref: string; title: string; location: string; reports_to: string; opened_on: string; requirement: string;
+  gates: { minYears?: number; requireMumbai?: boolean }; gate_notes: string[]; kind: "pattern" | "generated"; role: "PM" | "Senior PM" | null;
+  rubric: any; rubric_version: number; rubric_status: "draft" | "approved"; jd_file: string | null; created_at: string;
+};
+
+export async function listJobs(): Promise<JobRecord[]> {
+  return (await sql()`select * from jobs order by kind desc, created_at`) as JobRecord[];
+}
+
+export async function getJobRecord(ref: string): Promise<JobRecord | null> {
+  const rows = (await sql()`select * from jobs where ref = ${ref}`) as JobRecord[];
+  return rows[0] ?? null;
+}
+
+export async function createGeneratedJob(j: { ref: string; title: string; location: string; requirement: string; gates: object; gateNotes: string[]; rubric: object | null }): Promise<void> {
+  await sql()`insert into jobs (ref, title, location, reports_to, requirement, gates, gate_notes, kind, rubric, rubric_status)
+    values (${j.ref}, ${j.title}, ${j.location}, ${"Arjun Mehta, Founder"}, ${j.requirement}, ${JSON.stringify(j.gates)}::jsonb, ${j.gateNotes}, 'generated', ${j.rubric ? JSON.stringify(j.rubric) : null}::jsonb, 'draft')`;
+}
+
+/** Any edit makes a new rubric version and needs approving again before it's used. */
+export async function saveRubric(ref: string, rubric: object): Promise<number> {
+  const rows = (await sql()`update jobs set rubric = ${JSON.stringify(rubric)}::jsonb, rubric_version = rubric_version + 1, rubric_status = 'draft'
+    where ref = ${ref} and kind = 'generated' returning rubric_version`) as { rubric_version: number }[];
+  return rows[0]?.rubric_version ?? 0;
+}
+
+export async function approveRubric(ref: string): Promise<boolean> {
+  const rows = (await sql()`update jobs set rubric_status = 'approved' where ref = ${ref} and kind = 'generated' and rubric is not null returning ref`) as { ref: string }[];
+  return rows.length === 1;
+}
+
+export async function setScreeningJob(id: string, jobRef: string, rubricVersion: number): Promise<void> {
+  await sql()`update screenings set job_ref = ${jobRef}, rubric_version = ${rubricVersion} where id = ${id}`;
 }

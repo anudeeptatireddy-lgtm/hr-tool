@@ -102,28 +102,97 @@ function dashboard() {
         <button onclick="emailAllPassed()" ${pending ? "" : "disabled"}><span class="plus">✉</span>Email all passed${pending ? ` (${pending})` : ""}</button>
       </div>
       <div class="label">Active job openings</div>
-      <div class="card jobs-list" style="margin-bottom:26px">${data.jobs.map((j) => `<a class="job" href="#/jobs/${j.role === "PM" ? "pm" : "spm"}"><b>${esc(j.title)}</b><div class="small muted">${j.received} received · <span style="color:var(--accent-ink)">${j.passed} passed</span></div></a>`).join("")}</div>
+      <div class="card jobs-list" style="margin-bottom:26px">${data.jobs.map((j) => `<a class="job" href="#/jobs/${j.ref}"><b>${esc(j.title)}</b><div class="small muted">${j.received} received · <span style="color:var(--accent-ink)">${j.passed} passed</span>${j.rubricStatus === "approved" ? "" : " · rubric not approved"}</div></a>`).join("")}</div>
       <div class="label">Recent emails</div>
       <div class="feed">${sent.length ? sent.map((c) => `<div class="${c.lastSent.kind === "invite" ? "" : "dec"}"><b>${c.lastSent.kind === "invite" ? "Invite sent" : "Decline sent"}: ${esc(c.name)}</b><span class="muted small">${fmtTime(c.lastSent.at)}</span></div>`).join("") : '<span class="muted small">No emails sent yet.</span>'}</div>
     </section>
   </div>`;
 }
 
+function rubricBlock(job) {
+  const r = job.rubric;
+  if (job.kind === "pattern") {
+    return `<div class="label" style="margin-top:14px">Scoring rubric <span class="pill pass" style="margin-left:6px">Back-tested on past hires</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Signal</th><th>Weight</th><th>What it looks for</th></tr></thead><tbody>
+      ${r.signals.map((s) => `<tr><td><b>${s.key}</b> ${esc(s.name)}</td><td class="match">${s.weight}%</td><td class="small">${esc(s.what)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="muted small" style="margin-top:6px">This role is scored against the pattern of Kargo's best past hires, not the JD text; the JD sets the gates.</div>`;
+  }
+  if (!r) return `<div class="note" style="margin-top:14px">No rubric yet. <button class="btn sm" onclick="regenRubric('${job.ref}')">Generate rubric</button></div>`;
+  const approved = job.rubricStatus === "approved";
+  return `<div class="label" style="margin-top:14px">Scoring rubric <span class="pill ${approved ? "pass" : "ask"}" style="margin-left:6px">${approved ? "Approved" : "Draft: review before screening"}</span> <span class="muted small">v${job.rubricVersion} · generated from this job's requirements</span></div>
+    <div id="rub-${job.ref}">${r.signals.map((s) => `<div class="draft-item" data-key="${s.key}">
+      <div class="section-head" style="margin:0;gap:8px"><input class="r-name" value="${esc(s.name)}" style="flex:1;min-width:180px"><label class="small nowrap">Weight <input class="r-weight" type="number" min="0" max="100" value="${s.weight}" style="width:70px">%</label></div>
+      <label class="f">What it looks for</label><textarea class="r-what" rows="2">${esc(s.what)}</textarea>
+      <details><summary class="muted small" style="margin-top:6px">Score levels and probe question</summary>
+        ${["0", "1", "2", "3"].map((k) => `<label class="f">${k} =</label><input class="r-l${k}" value="${esc(s.levels[k])}">`).join("")}
+        <label class="f">Probe question</label><input class="r-probe" value="${esc(s.probe || "")}"></details></div>`).join("")}</div>
+    <div class="row-actions" style="margin-top:8px"><button class="btn ghost sm" onclick="saveRubricEdits('${job.ref}')">Save changes</button>
+      <button class="btn ghost sm" onclick="regenRubric('${job.ref}')">Regenerate from JD</button>
+      <button class="btn sm" onclick="approveRubric('${job.ref}')" ${approved ? "disabled" : ""}>${approved ? "Approved" : "Approve rubric"}</button>
+      <span class="muted small" id="rubmsg-${job.ref}">Weights must add up to 100. Saving an edit needs approving again.</span></div>`;
+}
+
 function jobs(which) {
-  const list = which ? data.jobs.filter((j) => (j.role === "PM" ? "pm" : "spm") === which) : data.jobs;
-  return `<h1>Jobs</h1><p class="muted">Each job description and every CV received for it. The JD only sets pass/fail gates; the match % comes from the pattern of past hires.</p>
+  const list = which ? data.jobs.filter((j) => j.ref === which) : data.jobs;
+  return `<div class="section-head"><div><h1>Jobs</h1><p class="muted" style="margin:0">Each job, how it's scored, and every CV received for it with its date.</p></div><button class="btn" onclick="newJob()">＋ New job</button></div>
   ${list.map((j) => {
-    const mine = searchFilter(data.candidates.filter((c) => c.role === j.role)).sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+    const mine = searchFilter(data.candidates.filter((c) => c.jobRef === j.ref)).sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+    const canScreen = j.rubricStatus === "approved";
     return `<div class="card pad" style="margin:18px 0 10px">
       <div class="section-head"><div><h2>${esc(j.title)} <span class="muted small">#${esc(j.ref)}</span></h2>
-        <div class="muted small">${esc(j.location)} · reports to ${esc(j.reportsTo)} · open since ${fmtDate(j.openedOn)}</div></div>
-        <div class="row-actions"><a class="btn ghost sm" href="${j.jdFile}" download>Download JD</a><button class="btn sm" onclick="openUpload('${j.role}')">Upload CVs</button></div></div>
+        <div class="muted small">${esc(j.location || "Location not set")} · reports to ${esc(j.reportsTo)} · open since ${fmtDate(j.openedOn)}</div></div>
+        <div class="row-actions">${j.jdFile ? `<a class="btn ghost sm" href="${j.jdFile}" download>Download JD</a>` : ""}<button class="btn sm" onclick="openUpload('${j.ref}')" ${canScreen ? "" : "disabled title='Approve the rubric first'"}>Upload CVs</button></div></div>
       <div class="small"><b>Looking for:</b> ${esc(j.requirement)}</div>
-      <div class="small" style="margin-top:4px"><b>Gates:</b> ${j.gates.map(esc).join(" · ")}</div>
-      <div class="small muted" style="margin-top:8px">${j.received} received · ${j.passed} passed</div>
+      <div class="small" style="margin-top:4px"><b>Gates:</b> ${j.gates.length ? j.gates.map(esc).join(" · ") : "none"}</div>
+      ${rubricBlock(j)}
+      <div class="small muted" style="margin-top:10px">${j.received} received · ${j.passed} passed</div>
     </div>
-    ${candidateTable(mine, { showRole: false, empty: "No CVs received for this role yet." })}`;
+    ${candidateTable(mine, { showRole: false, empty: "No CVs received for this job yet." })}`;
   }).join("")}`;
+}
+
+function newJob() {
+  modal("New job", `<p class="muted small">The rubric is generated from what you write here, then you review and approve it before any CV is screened.</p>
+    <label class="f" for="nj-title">Job title</label><input id="nj-title" placeholder="e.g. Customer Success Manager">
+    <label class="f" for="nj-loc">Location</label><input id="nj-loc" placeholder="e.g. Mumbai · in-office">
+    <label class="f" for="nj-req">Looking for</label><textarea id="nj-req" rows="6" placeholder="Paste the requirements from the job description"></textarea>
+    <label class="f" for="nj-min">Gate: minimum years of experience (0 for none)</label><input id="nj-min" type="number" min="0" max="30" value="0">
+    <label class="small" style="display:block;margin-top:10px"><input id="nj-mum" type="checkbox" checked> Gate: Mumbai-based or willing to relocate</label>
+    <div class="row-actions" style="margin-top:14px"><button class="btn" id="nj-go">Create job and generate rubric</button></div><div id="nj-msg" class="small" style="margin-top:8px"></div>`);
+  $("#nj-go").onclick = async () => {
+    $("#nj-go").disabled = true; $("#nj-msg").innerHTML = '<span class="spinner"></span>Generating the rubric from your requirements…';
+    try {
+      const r = await api("/api/jobs", { action: "create", title: $("#nj-title").value, location: $("#nj-loc").value, requirement: $("#nj-req").value, minYears: $("#nj-min").value, requireMumbai: $("#nj-mum").checked });
+      $("#modal").innerHTML = ""; await load(); location.hash = `#/jobs/${r.ref}`; route();
+      if (r.error) alert(`Job created, but the rubric couldn't be generated: ${r.error}. Use "Generate rubric" to try again.`);
+    } catch (e) { $("#nj-msg").innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`; $("#nj-go").disabled = false; }
+  };
+}
+
+function readRubric(ref) {
+  return { signals: [...document.querySelectorAll(`#rub-${ref} .draft-item`)].map((el) => ({
+    name: $(".r-name", el).value, weight: Number($(".r-weight", el).value), what: $(".r-what", el).value, probe: $(".r-probe", el).value,
+    levels: Object.fromEntries(["0", "1", "2", "3"].map((k) => [k, $(`.r-l${k}`, el).value])),
+  })) };
+}
+async function saveRubricEdits(ref) {
+  const rub = readRubric(ref), sum = rub.signals.reduce((a, s) => a + s.weight, 0);
+  if (sum !== 100) { $(`#rubmsg-${ref}`).innerHTML = `<span style="color:var(--red)">Weights add up to ${sum}, not 100.</span>`; return; }
+  try { await api("/api/jobs", { action: "save", ref, rubric: rub }); await load(); route(); } catch (e) { $(`#rubmsg-${ref}`).innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`; }
+}
+async function regenRubric(ref) {
+  const m = $(`#rubmsg-${ref}`); if (m) m.innerHTML = '<span class="spinner"></span>Regenerating…';
+  try { await api("/api/jobs", { action: "regenerate", ref }); await load(); route(); } catch (e) { alert(e.message); }
+}
+async function approveRubric(ref) {
+  const rub = readRubric(ref), sum = rub.signals.reduce((a, s) => a + s.weight, 0);
+  const job = data.jobs.find((x) => x.ref === ref);
+  // Unsaved edits must be saved (and so versioned) before approval.
+  if (JSON.stringify(rub.signals.map((s) => [s.name, s.weight, s.what])) !== JSON.stringify(job.rubric.signals.map((s) => [s.name, s.weight, s.what]))) {
+    $(`#rubmsg-${ref}`).innerHTML = '<span style="color:var(--red)">Save your changes first, then approve.</span>'; return;
+  }
+  if (sum !== 100) { $(`#rubmsg-${ref}`).innerHTML = `<span style="color:var(--red)">Weights add up to ${sum}, not 100.</span>`; return; }
+  try { await api("/api/jobs", { action: "approve", ref }); await load(); route(); } catch (e) { alert(e.message); }
 }
 
 function candidates(tab = "passed") {
@@ -146,6 +215,7 @@ async function detail(id) {
   const j = await api(`/api/result?id=${id}`);
   if (j.status === "running") return `<a href="#/candidates">← Candidates</a><div class="card empty"><span class="spinner"></span>Still screening this CV…</div>`;
   if (j.status !== "done") return `<a href="#/candidates">← Candidates</a><div class="card empty">${esc(j.error || "This CV couldn't be screened.")}</div>`;
+  if (j.result.kind === "generated") return genericDetail(id, j.result);
   const r = j.result, rr = r.roles[r.roleUsed], card = r.card, sig = r.scored.signals;
   const row = data.candidates.find((c) => c.id === id) || {};
   const gateRows = (x) => x.gates.map((g) => `<div><span class="pill ${g.status}">${g.status}</span> ${esc(g.name)} <span class="muted small">${esc(g.detail)}</span></div>`).join("");
@@ -183,6 +253,46 @@ async function detail(id) {
         <p class="muted small">Advance and Decline draft an email for you to review. It's only sent when you click Send.</p>
       </div>
     </section>
+  </div>`;
+}
+
+function decisionPanel(id, row) {
+  return `<section>
+      <div class="label">Your decision</div>
+      <div class="card pad">
+        <div class="muted small" style="margin-bottom:10px">Currently: ${statusCell(row)}</div>
+        <div class="row-actions">
+          <button class="btn" onclick="emailOne('${id}', 'advance')">Advance + draft invite</button>
+          <button class="btn amber" onclick="holdOne('${id}')">Hold</button>
+          <button class="btn warn" onclick="emailOne('${id}', 'decline')">Decline + draft email</button>
+        </div>
+        <p class="muted small">Advance and Decline draft an email for you to review. It's only sent when you click Send.</p>
+      </div>
+    </section>`;
+}
+
+function genericDetail(id, r) {
+  const s = r.summary, card = r.card, row = data.candidates.find((c) => c.id === id) || {};
+  return `<a href="#/candidates">← Candidates</a>
+  <div class="grid2 detail" style="margin-top:12px">
+    <section>
+      <div class="card pad">
+        <div class="headline"><div class="ini" style="width:38px;height:38px">${esc(initials(r.candidate.name))}</div>${esc(r.candidate.name || "Name not found")}
+          <span class="match ${matchClass(s.match)}">${Math.round(s.match)}% match</span> ${outcomePill(row)}</div>
+        <div class="muted small" style="margin-top:4px">${esc(s.jobTitle)} · rubric v${s.rubricVersion} · received ${row.receivedAt ? fmtDate(row.receivedAt) : ""} · ${esc(r.file)}</div>
+        <h3>Why ranked here</h3>
+        <ul class="plain">${card.why.map((w) => `<li>${esc(w.line)}<blockquote>“${esc(w.quote)}”</blockquote></li>`).join("") || "<li class='muted'>No signal scored above 0.</li>"}</ul>
+        <h3>Risk</h3><p>${esc(card.risk)}</p>
+        <h3>Probe questions</h3><ul class="plain">${card.probes.map((p) => `<li>${esc(p.ask)}</li>`).join("")}</ul>
+        ${s.gates.length ? `<h3>Gates</h3>${s.gates.map((g) => `<div><span class="pill ${g.status}">${g.status}</span> ${esc(g.name)} <span class="muted small">${esc(g.detail)}</span></div>`).join("")}` : ""}
+      </div>
+      <div class="card" style="margin-top:16px"><div class="pad"><h2>Signal scores (0–3)</h2></div><div class="table-wrap"><table>
+        <thead><tr><th>Signal</th><th>Weight</th><th>Score</th><th>Why, and the CV line it rests on</th></tr></thead>
+        <tbody>${r.scored.signals.map((x) => `<tr><td>${esc(x.name)}</td><td>${x.weight}%</td><td class="match">${x.score}</td><td>${esc(x.reason)}${x.quote ? `<blockquote>“${esc(x.quote)}”</blockquote>` : ""}</td></tr>`).join("")}</tbody></table></div>
+        <div class="pad muted small">3 runs: ${r.runTotals.join(" / ")} (median kept).${r.scored.flags.length ? ` ${r.scored.flags.length} item(s) had no matching CV quote and got no credit.` : ""}</div></div>
+      <div class="card pad" style="margin-top:16px"><details><summary class="muted">Extracted evidence (what scoring saw)</summary><pre>${esc(JSON.stringify(r.evidence, null, 2))}</pre></details></div>
+    </section>
+    ${decisionPanel(id, row)}
   </div>`;
 }
 
@@ -237,18 +347,18 @@ $("#search").addEventListener("input", () => { if (!/^#\/(c|emails|backtest)/.te
 const modal = (title, html) => { $("#modal").innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><h2>${title}</h2><button class="x" onclick="closeModal()">×</button></div><div id="mbody">${html}</div></div></div>`; };
 function closeModal() { $("#modal").innerHTML = ""; load().then(route).catch(() => {}); }
 
-function openUpload(role = "PM") {
+function openUpload(jobRef = "KRG-PM-01") {
   modal("Bulk upload CVs", `
     <label class="f" for="files">CV files (.pdf, .docx, .doc, .txt)</label><input id="files" type="file" multiple accept=".pdf,.docx,.doc,.txt">
-    <label class="f" for="urole">Role applied for</label>
-    <select id="urole"><option value="PM" ${role === "PM" ? "selected" : ""}>Product Manager</option><option value="Senior PM" ${role === "Senior PM" ? "selected" : ""}>Senior Product Manager</option><option value="">Not sure: detect from each CV</option></select>
+    <label class="f" for="urole">Job applied for</label>
+    <select id="urole">${data.jobs.filter((j) => j.rubricStatus === "approved").map((j) => `<option value="${j.ref}" ${j.ref === jobRef ? "selected" : ""}>${esc(j.title)} (#${esc(j.ref)})</option>`).join("")}<option value="">Kargo PM or Senior PM: detect from each CV</option></select>
     <p class="muted small">Names, emails, phone numbers and links are removed before a CV goes to the AI. Each CV takes about 20 seconds; you can close this and keep working.</p>
     <button class="btn" id="ugo">Upload and screen</button><div id="uprog" style="margin-top:12px"></div>`);
   $("#ugo").onclick = async () => {
     const files = [...$("#files").files];
     if (!files.length) return;
     $("#ugo").disabled = true;
-    const r = $("#urole").value || null;
+    const jobRef = $("#urole").value || null;
     $("#uprog").innerHTML = files.map((f, i) => `<div class="small" id="up${i}"><span class="spinner"></span>${esc(f.name)}</div>`).join("");
     // Two at a time: each CV already runs 3 extraction calls.
     let next = 0;
@@ -258,7 +368,7 @@ function openUpload(role = "PM") {
         try {
           if (f.size > 4 * 1024 * 1024) throw new Error("over 4 MB");
           const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result.split(",")[1]); fr.onerror = rej; fr.readAsDataURL(f); });
-          await api("/api/submit", { name: f.name, data: b64, role: r });
+          await api("/api/submit", jobRef ? { name: f.name, data: b64, jobRef } : { name: f.name, data: b64, role: null });
           $(`#up${i}`).innerHTML = `✓ ${esc(f.name)} <span class="muted">uploaded, screening</span>`;
         } catch (e) { $(`#up${i}`).innerHTML = `<span style="color:var(--red)">✗ ${esc(f.name)}: ${esc(e.message)}</span>`; }
       }

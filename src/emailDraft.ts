@@ -35,7 +35,7 @@ Rules:
 
 Reply with only JSON: {"subject": "...", "body": "..."}`;
 
-export function templateDraft(kind: Kind, f: ReturnType<typeof draftFacts>): Omit<Draft, "draftedBy"> {
+export function templateDraft(kind: Kind, f: Facts): Omit<Draft, "draftedBy"> {
   if (kind === "invite") {
     return {
       subject: `Kargo · ${f.role}: let's talk`,
@@ -56,8 +56,14 @@ function valid(d: any): d is { subject: string; body: string } {
   return d.subject.trim().length > 0 && d.body.includes("{first_name}") && d.body.length < 1500;
 }
 
-export async function draftEmail(kind: Kind, ev: Evidence, sc: Scored, rr: RoleResult): Promise<Omit<Draft, "draftedBy"> & { draftedBy: Draft["draftedBy"] }> {
-  const facts = draftFacts(ev, sc, rr);
+export type Facts = { role: string; strengths: string[]; needs_relocation_question: boolean };
+
+export async function draftEmail(kind: Kind, ev: Evidence, sc: Scored, rr: RoleResult): Promise<Draft> {
+  return draftEmailFromFacts(kind, draftFacts(ev, sc, rr));
+}
+
+/** Drafts from non-identifying facts only. Used directly for jobs with a generated rubric. */
+export async function draftEmailFromFacts(kind: Kind, facts: Facts): Promise<Draft> {
   const { data } = await callJson(SYSTEM, JSON.stringify({ kind, ...facts }), 30_000);
   if (valid(data)) return { subject: data.subject.trim(), body: data.body.trim(), draftedBy: "ai" };
   return { ...templateDraft(kind, facts), draftedBy: "template" };

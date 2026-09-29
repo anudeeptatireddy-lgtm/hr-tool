@@ -108,3 +108,18 @@ Choices made where the spec was silent. Anything touching weights, thresholds, e
 47. **Duplicates are matched on name, not email.** The 60 test CVs are 60 different people sharing 8 class inboxes, so email-based dedupe had skipped 52 real applicants. A CV now counts as a duplicate only with the same name or an identical file. Email counts only when no name was found.
 48. **Integration gate prompt fix.** Extraction was reading "owned" too strictly: a CV saying "Led the integration with ICEGATE" and "Designed the … integration" was marked as not owning one. Leading, designing, being the PM for, or running an integration or platform area now counts; being one contributor, or only using an API, doesn't. Integration-gate failures on the 20 Senior PM applicants fell from 10 to 3. The back-test still passes. `--rescreen` re-runs files already in Neon and updates their rows in place.
 49. **Milestone 4 result (60 applicants):** 10 reached 65%+ on score and 8 are shortlisted after gates. Of the 5 borderline and 47 declines, 29 failed a gate: 20 on the PM tenure range, 6 on the Senior PM tenure range and 3 on integration ownership. Two PM applicants at 80–82% fail only because PM years plus half of adjacent years come to about 5.6, over the 5-year limit. Whether adjacent years should count toward the upper limit is an open question for the user.
+
+## QA fixes · Priority 1 (rubric vs job description)
+
+50. **Kept the back-tested past-hire rubric for the two Kargo roles** (user's choice). SPEC.md's premise is that ranking follows the pattern of Arjun's best hires, not the JD, and the Milestone 3 back-test depends on it. The PM scoring 35% for lacking logistics ops is that rule working as designed. On the Jobs page these rubrics are shown read-only, labelled "Back-tested on past hires".
+51. **New jobs get a rubric generated from their own text** (`src/rubric.ts`): 3–4 signals, integer weights summing to exactly 100 with the largest on the most job-critical requirement, a description for each 0–3 level, and a probe question per signal. The prompt includes the user's constraint word for word ("Generate signals strictly from the requirements below…") and bans signals on college, certificates, company size, age or gender. Gates stay separate from signals.
+52. **The rubric is stored with the job (the `jobs` table) and reviewed before use.** It can be edited in the UI and must be approved before any CV can be uploaded for that job; the server refuses otherwise. Each saved edit makes a new version and returns to draft. Screenings record the job and rubric version they were scored with.
+53. **Generated-rubric screening keeps the hard rules** (`src/genericScreen.ts`):
+    - Identity is removed before any AI call.
+    - Call 1 extracts quoted evidence per signal, plus job dates and location.
+    - Only evidence with a verified quote goes on.
+    - Employer names are scrubbed.
+    - Call 2 scores from that evidence alone and must cite one of the verified quotes, or the signal scores 0 and is flagged.
+    - Median of 3 runs.
+    
+    Gates for these jobs: minimum years, calculated in code from the date ranges with overlaps counted once, and Mumbai-or-relocate (Devanagari "मुंबई" included).
